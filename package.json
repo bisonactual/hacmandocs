@@ -1,0 +1,24 @@
+{
+  "name": "hacmandocs",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "lint": "eslint 'packages/*/src/**/*.{ts,tsx}'",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1",
+    "fast-check": "^4.1.1",
+    "eslint": "^9.27.0",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.15.9"
+}

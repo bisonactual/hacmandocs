@@ -1,0 +1,26 @@
+{
+  "name": "@hacmandocs/worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "generate": "drizzle-kit generate",
+    "migrate": "wrangler d1 migrations apply hacmandocs-db --local"
+  },
+  "dependencies": {
+    "@hacmandocs/shared": "workspace:*",
+    "drizzle-orm": "^0.44.2",
+    "fflate": "^0.8.2",
+    "hono": "^4.7.10"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250525.0",
+    "drizzle-kit": "^0.31.1",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.16.0"
+  }
+}

@@ -1,0 +1,13 @@
+name = "hacmandocs-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hacmandocs-db"
+database_id = "placeholder-d1-database-id"
+migrations_dir = "drizzle"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "placeholder-kv-namespace-id"

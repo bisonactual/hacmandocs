@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+packages/web/dist/
+packages/worker/dist/
+
+# Wrangler local state (D1, KV, etc.)
+.wrangler/
+
+# Environment / secrets
+.dev.vars
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
