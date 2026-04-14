@@ -1378,7 +1378,7 @@ inductionsApp.get("/trainer/attempts", requireTrainer(), async (c) => {
   const allToolRecordRows = await db.select().from(toolRecords);
   const toolByQuizId = new Map<string, string>();
   for (const tr of allToolRecordRows) {
-    toolByQuizId.set(tr.quizId, tr.name);
+    if (tr.quizId) toolByQuizId.set(tr.quizId, tr.name);
   }
 
   return c.json(

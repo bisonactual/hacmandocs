@@ -205,7 +205,7 @@ describe("Property 5: Published quiz immutability", () => {
 
   it("editing existing questions on a published quiz is always rejected", () => {
     fc.assert(
-      fc.property(questionArb, nonEmptyStringArb, (_question, _newText) => {
+      fc.property(questionArb, nonEmptyStringArb, (question, _newText) => {
         const result = canModifyQuestion("published", question.id);
         expect(result.allowed).toBe(false);
         expect(result.error).toBeDefined();

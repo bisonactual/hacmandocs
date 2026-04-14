@@ -18,6 +18,7 @@ describe('Property 6: Quiz scoring and attempt recording', () => {
 
   /** Generator for a question with a random correctOptionIndex (0-3) */
   const questionArb = fc.record({
+    questionType: fc.constantFrom('multiple_choice', 'true_false'),
     correctOptionIndex: fc.integer({ min: 0, max: 3 }),
   });
 

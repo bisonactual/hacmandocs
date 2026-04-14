@@ -325,7 +325,7 @@ importApp.post("/zip", requireRole("Admin"), async (c) => {
   const session = c.get("session");
   const formData = await c.req.formData();
   const file = formData.get("file");
-  if (!file || !(file instanceof File)) return c.json({ error: "A ZIP file is required" }, 400);
+  if (!file || !(file instanceof Blob)) return c.json({ error: "A ZIP file is required" }, 400);
 
   const { unzipSync } = await import("fflate");
   const zipData = new Uint8Array(await file.arrayBuffer());

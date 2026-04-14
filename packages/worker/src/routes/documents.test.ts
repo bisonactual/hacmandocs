@@ -79,7 +79,7 @@ describe("Document validation logic", () => {
 
   it("rejects whitespace-only title", () => {
     const title = "   ";
-    expect(!title || !title.trim()).toBe(true);
+    expect(title.trim().length === 0).toBe(true);
   });
 
   it("accepts valid title", () => {
@@ -113,7 +113,7 @@ describe("Category validation logic", () => {
 
   it("rejects whitespace-only category name", () => {
     const name = "   ";
-    expect(!name || !name.trim()).toBe(true);
+    expect(name.trim().length === 0).toBe(true);
   });
 
   it("accepts valid category name", () => {
@@ -138,7 +138,8 @@ describe("Category validation logic", () => {
   });
 
   it("defaults sortOrder to 0 when not provided", () => {
-    const sortOrder = undefined ?? 0;
+    const input: number | undefined = undefined;
+    const sortOrder = input ?? 0;
     expect(sortOrder).toBe(0);
   });
 });

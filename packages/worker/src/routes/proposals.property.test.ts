@@ -18,8 +18,8 @@ const documentNodeArb = (): fc.Arbitrary<DocumentNode> =>
       { minLength: 1, maxLength: 5 },
     )
     .map((children) => ({
-      type: "doc",
-      content: children as DocumentNode[],
+      type: "doc" as const,
+      content: children as unknown as DocumentNode[],
     }));
 
 /** Generate a random user ID. */

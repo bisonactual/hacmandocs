@@ -29,6 +29,7 @@ describe('Property 13: Expiry notification scheduling with deduplication', () =>
     userId: fc.uuid(),
     toolRecordId: fc.uuid(),
     quizAttemptId: fc.uuid(),
+    signoffId: fc.constant(null),
     completedAt: timestampArb,
     expiresAt: timestampArb,
   });
@@ -144,6 +145,7 @@ describe('Property 13: Expiry notification scheduling with deduplication', () =>
       userId: fc.uuid(),
       toolRecordId: fc.uuid(),
       quizAttemptId: fc.uuid(),
+      signoffId: fc.constant(null),
       completedAt: timestampArb,
       expiresAt: fc.constant(null),
     });

@@ -64,6 +64,7 @@ export async function processExpiryNotifications(
     userId: c.userId,
     toolRecordId: c.toolRecordId,
     quizAttemptId: c.quizAttemptId,
+    signoffId: c.signoffId,
     completedAt: c.completedAt,
     expiresAt: c.expiresAt,
   }));
