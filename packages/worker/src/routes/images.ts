@@ -16,25 +16,23 @@ imagesApp.post("/upload", requireRole("Admin"), async (c) => {
   const formData = await c.req.formData();
   const file = formData.get("file");
 
-  if (!file || typeof (file as File).arrayBuffer !== "function") {
+  if (!file || typeof file === "string") {
     return c.json({ error: "No file provided." }, 400);
   }
 
-  const f = file as File;
-
-  if (!ALLOWED_TYPES.includes(f.type)) {
-    return c.json({ error: `Unsupported file type: ${f.type}` }, 400);
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return c.json({ error: `Unsupported file type: ${file.type}` }, 400);
   }
 
-  if (f.size > MAX_SIZE) {
+  if (file.size > MAX_SIZE) {
     return c.json({ error: "File too large (max 5 MB)." }, 400);
   }
 
-  const ext = f.name.split(".").pop()?.toLowerCase() || "bin";
+  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
   const key = `${crypto.randomUUID()}.${ext}`;
 
-  await c.env.IMAGES.put(key, f.stream(), {
-    httpMetadata: { contentType: f.type },
+  await c.env.IMAGES.put(key, file.stream(), {
+    httpMetadata: { contentType: file.type },
   });
 
   // Return a relative URL; the GET route below serves the image
