@@ -25,7 +25,7 @@ export async function apiFetch<T = unknown>(
     const isPublicPath = path.startsWith("/api/documents") || path.startsWith("/api/categories") || path.startsWith("/api/search");
     if (!isPublicPath) {
       localStorage.removeItem("session_token");
-      window.location.href = "/login";
+      window.location.href = import.meta.env.BASE_URL + "login";
     }
     throw new Error("Session expired");
   }
