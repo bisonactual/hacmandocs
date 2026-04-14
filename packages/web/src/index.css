@@ -41,3 +41,69 @@
     width: 100%;
   }
 }
+
+/* ── Rich Text Editor styles ──────────────────────────────────────── */
+
+/* Make ProseMirror fill the editor container so clicking anywhere focuses */
+.ProseMirror {
+  min-height: 100%;
+  flex: 1;
+  outline: none;
+  cursor: text;
+}
+
+/* Table styling inside the editor */
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5rem 0;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+  border: 1px solid #444;
+  padding: 0.5rem;
+  min-width: 2rem;
+  vertical-align: top;
+}
+
+.ProseMirror th {
+  background: #2a2a2a;
+  font-weight: 600;
+}
+
+/* Table styling inside the preview pane */
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.prose td,
+.prose th {
+  border: 1px solid #444;
+  padding: 0.5rem;
+}
+
+.prose th {
+  background: #2a2a2a;
+  font-weight: 600;
+}
+
+/* Image styling */
+.ProseMirror img,
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+}
+
+/* Code block styling in preview */
+.prose pre {
+  background: #111;
+  border-radius: 0.375rem;
+  padding: 1rem;
+}
+
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}

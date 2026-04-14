@@ -347,6 +347,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     // Ref to hold the editor instance so async handlers (paste/drop) can access it
     const editorRef = useRef<ReturnType<typeof useEditor>>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [previewHtml, setPreviewHtml] = useState("");
 
     // Default extensions used when no custom set is provided
     const defaultExtensions: Extensions = [
@@ -419,6 +420,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       },
       onUpdate: ({ editor: ed }) => {
         const json = ed.getJSON() as DocumentNode;
+        setPreviewHtml(ed.getHTML());
         // Persist draft to localStorage
         try {
           localStorage.setItem(getDraftKey(documentId), JSON.stringify(json));
@@ -426,6 +428,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           // Storage full — ignore
         }
         onChange?.(json);
+      },
+      onCreate: ({ editor: ed }) => {
+        setPreviewHtml(ed.getHTML());
       },
     });
 
@@ -458,14 +463,14 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
         {/* Editor pane */}
         <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark">
           <Toolbar editor={editor} isUploading={isUploading} setIsUploading={setIsUploading} />
-          <div className="flex min-h-[300px] flex-col p-4 text-gray-200 [&_.ProseMirror]:min-h-full [&_.ProseMirror]:flex-1 [&_.ProseMirror]:outline-none [&_.ProseMirror]:cursor-text">
+          <div className="flex min-h-[300px] flex-col p-4 text-gray-200">
             {isUploading && (
               <div className="mb-2 flex items-center gap-2 rounded bg-hacman-gray/50 px-3 py-1.5 text-xs text-gray-400">
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
                 Uploading image…
               </div>
             )}
-            <EditorContent editor={editor} />
+            <EditorContent editor={editor} className="flex-1" />
           </div>
         </div>
 
@@ -473,14 +478,8 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
         <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark p-4">
           <h3 className="mb-2 text-sm font-semibold text-hacman-muted">Preview</h3>
           <div
-            className="prose prose-invert max-w-none text-sm
-              [&_table]:border-collapse [&_table]:border [&_table]:border-gray-600
-              [&_td]:border [&_td]:border-gray-600 [&_td]:p-2
-              [&_th]:border [&_th]:border-gray-600 [&_th]:p-2 [&_th]:bg-gray-800
-              [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded
-              [&_pre]:bg-gray-900 [&_pre]:rounded [&_pre]:p-4
-              [&_code]:font-mono"
-            dangerouslySetInnerHTML={{ __html: editor.getHTML() }}
+            className="prose prose-invert max-w-none text-sm"
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
           />
         </div>
       </div>

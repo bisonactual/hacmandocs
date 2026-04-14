@@ -106,51 +106,37 @@ describe('Bug Condition Exploration: Preview CSS overrides (EXPECTED TO FAIL)', 
    */
 
   let sourceCode: string;
+  let cssCode: string;
 
-  // Read the source file once
+  // Read the source files once
   const sourceFilePath = path.resolve(__dirname, 'RichTextEditor.tsx');
   sourceCode = fs.readFileSync(sourceFilePath, 'utf-8');
+  const cssFilePath = path.resolve(__dirname, '..', 'index.css');
+  cssCode = fs.readFileSync(cssFilePath, 'utf-8');
 
   it('preview container should have targeted CSS for table elements (borders, cell padding)', () => {
-    // Look for table-specific CSS in the preview section of the source
-    // The preview container is the div with `prose prose-invert` that uses dangerouslySetInnerHTML
-    // We need to find evidence of table styling beyond the base prose classes
-
-    // Find the preview section (after "Preview" heading, contains dangerouslySetInnerHTML)
-    const previewSectionMatch = sourceCode.match(/Preview[\s\S]*?dangerouslySetInnerHTML/);
-    expect(previewSectionMatch).not.toBeNull();
-
-    // Check for table-specific CSS overrides in the preview container or nearby styles
     const hasTableBorderCSS =
-      sourceCode.includes('border-collapse') ||
-      sourceCode.includes('[&_table]') ||
-      sourceCode.includes('[&>table]') ||
-      sourceCode.includes('prose-table') ||
-      /table.*border/.test(sourceCode) ||
-      /\.prose.*table/.test(sourceCode);
+      cssCode.includes('border-collapse') ||
+      cssCode.includes('.prose table') ||
+      cssCode.includes('.prose td') ||
+      sourceCode.includes('[&_table]');
 
     expect(hasTableBorderCSS).toBe(true);
   });
 
   it('preview container should have targeted CSS for img elements (max-width, responsive)', () => {
     const hasImgCSS =
-      sourceCode.includes('[&_img]') ||
-      sourceCode.includes('[&>img]') ||
-      sourceCode.includes('prose-img') ||
-      /img.*max-width/.test(sourceCode) ||
-      /img.*responsive/.test(sourceCode);
+      cssCode.includes('max-width') && cssCode.includes('img') ||
+      sourceCode.includes('[&_img]');
 
     expect(hasImgCSS).toBe(true);
   });
 
   it('preview container should have targeted CSS for pre/code elements (background, font)', () => {
     const hasCodeCSS =
-      sourceCode.includes('[&_pre]') ||
-      sourceCode.includes('[&_code]') ||
-      sourceCode.includes('[&>pre]') ||
-      sourceCode.includes('prose-code') ||
-      /pre.*background/.test(sourceCode) ||
-      /code.*font/.test(sourceCode);
+      cssCode.includes('.prose pre') ||
+      cssCode.includes('.prose code') ||
+      sourceCode.includes('[&_pre]');
 
     expect(hasCodeCSS).toBe(true);
   });
@@ -167,33 +153,30 @@ describe('Bug Condition Exploration: Click area CSS (EXPECTED TO FAIL)', () => {
    */
 
   let sourceCode: string;
+  let cssCode: string;
 
   const sourceFilePath = path.resolve(__dirname, 'RichTextEditor.tsx');
   sourceCode = fs.readFileSync(sourceFilePath, 'utf-8');
+  const cssFilePath = path.resolve(__dirname, '..', 'index.css');
+  cssCode = fs.readFileSync(cssFilePath, 'utf-8');
 
   it('editor should have CSS to make .ProseMirror fill container height', () => {
-    // Look for min-height: 100% or h-full or flex-grow on the ProseMirror element
-    // Specifically check for ProseMirror height rules
     const hasProseMirrorHeightRule =
-      /ProseMirror.*min-height/.test(sourceCode) ||
-      /ProseMirror.*h-full/.test(sourceCode) ||
-      /\.ProseMirror\s*\{[^}]*min-height/.test(sourceCode);
+      cssCode.includes('.ProseMirror') && cssCode.includes('min-height: 100%') ||
+      cssCode.includes('.ProseMirror') && cssCode.includes('flex: 1');
 
-    // The editor container should use flex layout to allow ProseMirror to expand
     const editorContainerSection = sourceCode.match(/min-h-\[300px\][\s\S]*?EditorContent/);
     const hasFlexLayout = editorContainerSection
       ? (editorContainerSection[0].includes('flex') && editorContainerSection[0].includes('flex-col'))
       : false;
 
-    // At least one of these should be true for proper click area coverage
     expect(hasProseMirrorHeightRule || hasFlexLayout).toBe(true);
   });
 
   it('editor should have cursor: text style for click area', () => {
     const hasCursorText =
-      sourceCode.includes('cursor-text') ||
-      sourceCode.includes('cursor: text') ||
-      /ProseMirror.*cursor/.test(sourceCode);
+      cssCode.includes('cursor: text') ||
+      sourceCode.includes('cursor-text');
 
     expect(hasCursorText).toBe(true);
   });
