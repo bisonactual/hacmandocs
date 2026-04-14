@@ -173,14 +173,6 @@ describe('Bug Condition Exploration: Click area CSS (EXPECTED TO FAIL)', () => {
 
   it('editor should have CSS to make .ProseMirror fill container height', () => {
     // Look for min-height: 100% or h-full or flex-grow on the ProseMirror element
-    const hasProseMirrorFillCSS =
-      sourceCode.includes('min-h-full') ||
-      sourceCode.includes('h-full') ||
-      sourceCode.includes('min-height: 100%') ||
-      sourceCode.includes('[&_.ProseMirror]') ||
-      sourceCode.includes('.ProseMirror') ||
-      sourceCode.includes('flex-1') && sourceCode.includes('EditorContent');
-
     // Specifically check for ProseMirror height rules
     const hasProseMirrorHeightRule =
       /ProseMirror.*min-height/.test(sourceCode) ||

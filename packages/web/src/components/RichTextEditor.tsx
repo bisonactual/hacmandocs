@@ -166,7 +166,7 @@ function TableSizePicker({
 
 function Toolbar({
   editor,
-  isUploading,
+  isUploading: _isUploading,
   setIsUploading,
 }: {
   editor: ReturnType<typeof useEditor>;
