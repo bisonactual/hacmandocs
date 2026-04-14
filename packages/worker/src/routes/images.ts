@@ -20,19 +20,23 @@ imagesApp.post("/upload", requireRole("Admin"), async (c) => {
     return c.json({ error: "No file provided." }, 400);
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return c.json({ error: `Unsupported file type: ${file.type}` }, 400);
+  // In Workers, formData files come as File objects but the CF types
+  // don't include File in the FormData return type. Cast via unknown.
+  const f = file as unknown as File;
+
+  if (!ALLOWED_TYPES.includes(f.type)) {
+    return c.json({ error: `Unsupported file type: ${f.type}` }, 400);
   }
 
-  if (file.size > MAX_SIZE) {
+  if (f.size > MAX_SIZE) {
     return c.json({ error: "File too large (max 5 MB)." }, 400);
   }
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const ext = f.name.split(".").pop()?.toLowerCase() || "bin";
   const key = `${crypto.randomUUID()}.${ext}`;
 
-  await c.env.IMAGES.put(key, file.stream(), {
-    httpMetadata: { contentType: file.type },
+  await c.env.IMAGES.put(key, f.stream(), {
+    httpMetadata: { contentType: f.type },
   });
 
   // Return a relative URL; the GET route below serves the image
