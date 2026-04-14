@@ -5,12 +5,12 @@ compatibility_date = "2024-12-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "hacmandocs-db"
-database_id = "placeholder-d1-database-id"
+database_id = "f100f2f8-d3e8-4099-b517-9475d7d31b79"
 migrations_dir = "drizzle"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "placeholder-kv-namespace-id"
+id = "537f4dd00fe644558127fdbfef54e096"
 
 [triggers]
 crons = ["0 8 * * *"]
