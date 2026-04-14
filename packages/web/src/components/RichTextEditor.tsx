@@ -87,9 +87,9 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
     try {
       const src = await uploadImageFile(file);
       editor.chain().focus().setImage({ src }).run();
-    } catch {
-      // Fall back to URL prompt if upload fails (e.g. not logged in as admin)
-      const url = window.prompt("Upload failed. Enter image URL manually:");
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      const url = window.prompt(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}\n\nEnter image URL manually:`);
       if (url) editor.chain().focus().setImage({ src: url }).run();
     }
   };
@@ -246,15 +246,11 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
               const file = item.getAsFile();
               if (file) {
                 uploadImageFile(file).then((src) => {
-                  // Use the view's editor instance instead of the outer variable
-                  const ed = view.dom.closest(".ProseMirror")
-                    ? view
-                    : null;
-                  if (ed) {
-                    const { tr } = view.state;
-                    const node = view.state.schema.nodes.image.create({ src });
-                    view.dispatch(tr.replaceSelectionWith(node));
-                  }
+                  const { tr } = view.state;
+                  const node = view.state.schema.nodes.image.create({ src });
+                  view.dispatch(tr.replaceSelectionWith(node));
+                }).catch((err) => {
+                  console.error("Image paste upload failed:", err);
                 });
                 return true;
               }

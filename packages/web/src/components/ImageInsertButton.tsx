@@ -24,6 +24,7 @@ async function uploadFile(file: File): Promise<string> {
   }
 
   const { url } = (await res.json()) as { url: string };
+  // Return absolute URL so images work regardless of where they're rendered
   return url.startsWith("http") ? url : `${API_URL}${url}`;
 }
 
@@ -34,23 +35,25 @@ async function uploadFile(file: File): Promise<string> {
  */
 export default function ImageInsertButton({ onInsert }: ImageInsertButtonProps) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) return;
     setUploading(true);
+    setError("");
     try {
       const url = await uploadFile(file);
       onInsert(`![image](${url})`);
-    } catch {
-      // silently fail — the upload endpoint shows errors in console
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
     }
   }, [onInsert]);
 
   return (
-    <>
+    <span className="inline-flex items-center gap-1">
       <button
         type="button"
         disabled={uploading}
@@ -72,6 +75,7 @@ export default function ImageInsertButton({ onInsert }: ImageInsertButtonProps) 
           e.target.value = "";
         }}
       />
-    </>
+      {error && <span className="text-xs text-red-400">{error}</span>}
+    </span>
   );
 }

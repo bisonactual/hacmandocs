@@ -40,8 +40,9 @@ export function useImagePaste(onInsert: (markdown: string) => void) {
           try {
             const url = await uploadFile(file);
             onInsert(`![image](${url})`);
-          } catch {
-            // upload failed silently
+          } catch (err) {
+            console.error("Image paste upload failed:", err);
+            alert(`Image upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
           }
           return;
         }
