@@ -44,7 +44,6 @@ export default function ProposalsPage() {
       setProposals(rows.sort((a, b) => b.createdAt - a.createdAt));
 
       // Fetch user names and doc titles for display
-      const authorIds = [...new Set(rows.map((p) => p.authorId))];
       const docIds = [...new Set(rows.map((p) => p.documentId))];
 
       const [userList, docList] = await Promise.all([
