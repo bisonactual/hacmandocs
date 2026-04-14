@@ -13,7 +13,6 @@ import groupsApp from "./routes/groups";
 import notificationsApp from "./routes/notifications";
 import inductionsApp from "./routes/inductions";
 import imagesApp from "./routes/images";
-import seedApp from "./routes/seed";
 import type { SessionData } from "./auth/session";
 import { authMiddleware, optionalAuthMiddleware } from "./middleware/auth";
 import { requireUsernameMiddleware } from "./middleware/require-username";
@@ -91,7 +90,6 @@ app.route("/api/groups", groupsApp);
 app.route("/api/notifications", notificationsApp);
 app.route("/api/inductions", inductionsApp);
 app.route("/api/images", imagesApp);
-app.route("/api/seed", seedApp);
 
 export default {
   fetch: app.fetch,
