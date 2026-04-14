@@ -126,10 +126,12 @@ oauth.get("/callback", async (c) => {
 
   let userId: string;
   let permissionLevel: string;
+  let username: string | null;
 
   if (existing) {
     userId = existing.id;
     permissionLevel = existing.permissionLevel;
+    username = existing.username;
     // Update profile fields that may have changed at the provider
     await db
       .update(users)
@@ -139,6 +141,7 @@ oauth.get("/callback", async (c) => {
   } else {
     userId = crypto.randomUUID();
     permissionLevel = "Viewer"; // new OAuth users default to Viewer
+    username = null;
     await db
       .insert(users)
       .values({
@@ -160,6 +163,7 @@ oauth.get("/callback", async (c) => {
     userId,
     "oauth",
     permissionLevel as import("@hacmandocs/shared").PermissionLevel,
+    username,
   );
 
   return c.json({ token: session.token, expiresAt: session.expiresAt });

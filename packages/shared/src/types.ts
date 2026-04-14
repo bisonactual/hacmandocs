@@ -33,6 +33,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  username: string | null;
   authMethod: AuthMethod;
   externalId: string;
   permissionLevel: PermissionLevel;
@@ -116,4 +117,135 @@ export interface ImportReport {
 export interface MarkdownConverter {
   parseMarkdown(markdown: string): DocumentNode;
   toMarkdown(doc: DocumentNode): string;
+}
+
+// ── Tool Induction types ─────────────────────────────────────────────
+
+/** Quiz lifecycle states */
+export type QuizStatus = 'draft' | 'published' | 'archived';
+
+/** Question types */
+export type QuestionType = 'multiple_choice' | 'true_false' | 'multi_select';
+
+/** Certification status */
+export type CertificationStatus = 'active' | 'expiring_soon' | 'expired';
+
+/** Email notification types for cert expiry */
+export type ExpiryNotificationType = 'warning_14d' | 'expired' | 'post_expiry_30d';
+
+// ── Tool Induction domain interfaces ─────────────────────────────────
+
+export interface ToolRecord {
+  id: string;
+  name: string;
+  quizId: string | null;
+  preInductionQuizId: string | null;
+  refresherQuizId: string | null;
+  retrainingIntervalDays: number | null;
+  areaId: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Quiz {
+  id: string;
+  title: string;
+  description: string | null;
+  showWrongAnswers: boolean;
+  status: QuizStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Question {
+  id: string;
+  quizId: string;
+  questionText: string;
+  questionType: QuestionType;
+  options: string[];
+  correctOptionIndex: number;       // used for multiple_choice and true_false
+  correctOptionIndices: number[];   // used for multi_select (multiple correct answers)
+  sortOrder: number;
+}
+
+export interface QuizAttempt {
+  id: string;
+  quizId: string;
+  userId: string;
+  answersJson: number[];
+  score: number;
+  passed: boolean;
+  createdAt: number;
+}
+
+export interface Certification {
+  id: string;
+  userId: string;
+  toolRecordId: string;
+  quizAttemptId: string | null;
+  signoffId: string | null;
+  completedAt: number;
+  expiresAt: number | null; // null for online_induction (permanent)
+}
+
+// ── Induction Checklist types ────────────────────────────────────────
+
+export interface InductionChecklist {
+  id: string;
+  toolRecordId: string;
+  sectionTitle: string;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface InductionChecklistItem {
+  id: string;
+  checklistId: string;
+  itemText: string;
+  sortOrder: number;
+}
+
+/** A checklist section with its items, used for display/printing */
+export interface ChecklistSection {
+  id: string;
+  sectionTitle: string;
+  sortOrder: number;
+  items: InductionChecklistItem[];
+}
+
+// ── Induction Signoff types ──────────────────────────────────────────
+
+export interface InductionSignoff {
+  id: string;
+  toolRecordId: string;
+  trainerId: string;
+  inducteeFullName: string;
+  inducteeUsername: string;
+  inducteeUserId: string | null;
+  trainerConfirmed: boolean;
+  inducteeConfirmed: boolean;
+  signedAt: number;
+  createdAt: number;
+}
+
+// ── Tool Area & Assignment types ─────────────────────────────────────
+
+export interface ToolArea {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ToolTrainer {
+  userId: string;
+  toolRecordId: string;
+  assignedAt: number;
+}
+
+export interface AreaLeader {
+  userId: string;
+  areaId: string;
+  assignedAt: number;
 }

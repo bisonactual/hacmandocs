@@ -1,6 +1,9 @@
 import { createMiddleware } from "hono/factory";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
 import type { PermissionLevel } from "@hacmandocs/shared";
 import type { Env } from "../index";
+import { toolTrainers, areaLeaders } from "../db/schema";
 
 /**
  * Numeric weight for each permission level.
@@ -30,5 +33,52 @@ export function requireRole(minLevel: PermissionLevel) {
     }
 
     await next();
+  });
+}
+
+/**
+ * Returns Hono middleware that requires the user to be a trainer
+ * (assigned to at least one tool via tool_trainers), an area leader,
+ * or an Admin.
+ *
+ * Admins always pass the trainer check — they have implicit trainer access.
+ */
+export function requireTrainer() {
+  return createMiddleware<Env>(async (c, next) => {
+    const session = c.get("session");
+
+    // Admins always pass
+    if (session.permissionLevel === 'Admin') {
+      await next();
+      return;
+    }
+
+    const db = drizzle(c.env.DB);
+
+    // Check if user is assigned to any tool as a trainer
+    const [trainerAssignment] = await db
+      .select()
+      .from(toolTrainers)
+      .where(eq(toolTrainers.userId, session.userId))
+      .limit(1);
+
+    if (trainerAssignment) {
+      await next();
+      return;
+    }
+
+    // Check if user is an area leader
+    const [leaderAssignment] = await db
+      .select()
+      .from(areaLeaders)
+      .where(eq(areaLeaders.userId, session.userId))
+      .limit(1);
+
+    if (leaderAssignment) {
+      await next();
+      return;
+    }
+
+    return c.json({ error: "Insufficient permissions" }, 403);
   });
 }

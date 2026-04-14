@@ -47,8 +47,8 @@ function ToolbarButton({
       title={title}
       className={`rounded px-2 py-1 text-sm ${
         active
-          ? "bg-blue-100 text-blue-700"
-          : "text-gray-600 hover:bg-gray-100"
+          ? "bg-hacman-yellow/20 text-hacman-yellow"
+          : "text-gray-400 hover:bg-hacman-gray"
       } disabled:opacity-40`}
     >
       {children}
@@ -74,7 +74,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   }, [editor]);
 
   return (
-    <div className="flex flex-wrap gap-1 border-b border-gray-200 bg-gray-50 p-2">
+    <div className="flex flex-wrap gap-1 border-b border-hacman-gray bg-hacman-gray/50 p-2">
       {/* Headings */}
       {([1, 2, 3] as const).map((level) => (
         <ToolbarButton
@@ -87,7 +87,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         </ToolbarButton>
       ))}
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-hacman-gray" />
 
       {/* Inline formatting */}
       <ToolbarButton
@@ -105,7 +105,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         <em>I</em>
       </ToolbarButton>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-hacman-gray" />
 
       {/* Lists */}
       <ToolbarButton
@@ -123,7 +123,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         1. List
       </ToolbarButton>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-hacman-gray" />
 
       {/* Link & Image */}
       <ToolbarButton onClick={addLink} active={editor.isActive("link")} title="Add link">
@@ -133,7 +133,7 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         🖼 Image
       </ToolbarButton>
 
-      <span className="mx-1 border-l border-gray-300" />
+      <span className="mx-1 border-l border-hacman-gray" />
 
       {/* Code block */}
       <ToolbarButton
@@ -219,18 +219,18 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     return (
       <div className="flex gap-4">
         {/* Editor pane */}
-        <div className="flex-1 rounded border border-gray-300 bg-white">
+        <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark">
           <Toolbar editor={editor} />
-          <div className="min-h-[300px] p-4">
+          <div className="min-h-[300px] p-4 text-gray-200">
             <EditorContent editor={editor} />
           </div>
         </div>
 
         {/* Live preview pane */}
-        <div className="flex-1 rounded border border-gray-200 bg-gray-50 p-4">
-          <h3 className="mb-2 text-sm font-semibold text-gray-500">Preview</h3>
+        <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark p-4">
+          <h3 className="mb-2 text-sm font-semibold text-hacman-muted">Preview</h3>
           <div
-            className="prose max-w-none text-sm"
+            className="prose prose-invert max-w-none text-sm"
             dangerouslySetInnerHTML={{ __html: editor.getHTML() }}
           />
         </div>

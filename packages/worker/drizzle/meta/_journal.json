@@ -8,6 +8,55 @@
       "when": 1776057417201,
       "tag": "0000_nebulous_mole_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1776119214455,
+      "tag": "0001_cold_psylocke",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1776120486057,
+      "tag": "0002_peaceful_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1776123284003,
+      "tag": "0003_numerous_captain_flint",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1776127066996,
+      "tag": "0004_lush_scrambler",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776200000000,
+      "tag": "0005_add_pre_induction_type",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1776300000000,
+      "tag": "0006_add_username_and_signoffs",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1776400000000,
+      "tag": "0007_tool_areas_and_trainers",
+      "breakpoints": true
     }
   ]
 }

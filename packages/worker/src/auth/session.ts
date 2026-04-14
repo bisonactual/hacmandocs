@@ -5,6 +5,7 @@ export interface SessionData {
   userId: string;
   authMethod: AuthMethod;
   permissionLevel: PermissionLevel;
+  username: string | null;
   expiresAt: number;
 }
 
@@ -20,11 +21,12 @@ export async function createSession(
   userId: string,
   authMethod: AuthMethod,
   permissionLevel: PermissionLevel,
+  username: string | null = null,
 ): Promise<Session> {
   const token = crypto.randomUUID();
   const expiresAt = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
 
-  const data: SessionData = { userId, authMethod, permissionLevel, expiresAt };
+  const data: SessionData = { userId, authMethod, permissionLevel, username, expiresAt };
 
   await kv.put(token, JSON.stringify(data), {
     expirationTtl: SESSION_TTL_SECONDS,

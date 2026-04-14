@@ -106,10 +106,14 @@ export default function GroupsPage() {
     load();
   };
 
-  if (loading) return <p className="text-gray-400">Loading groups…</p>;
+  if (loading) return <p className="text-hacman-muted">Loading groups…</p>;
 
   return (
     <div className="max-w-2xl">
+      <div className="mb-4 rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
+        <p className="text-sm text-gray-400">Control who can see which documents. Create visibility groups with access levels, assign members, and restrict documents to specific groups.</p>
+      </div>
+
       {/* Create group form */}
       <form onSubmit={createGroup} className="mb-6 flex flex-wrap gap-2">
         <input
@@ -118,14 +122,14 @@ export default function GroupsPage() {
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Group name"
           required
-          className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+          className="rounded-lg border border-hacman-gray bg-hacman-black px-3 py-1.5 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
         />
         <label htmlFor="group-level" className="sr-only">Group level</label>
         <select
           id="group-level"
           value={newLevel}
           onChange={(e) => setNewLevel(e.target.value as GroupLevel)}
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1.5 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
         >
           {groupLevels.map((l) => (
             <option key={l} value={l}>{l}</option>
@@ -137,7 +141,7 @@ export default function GroupsPage() {
           value={newMember}
           onChange={(e) => setNewMember(e.target.value)}
           required
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1.5 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
         >
           <option value="">Select member…</option>
           {users.map((u) => (
@@ -146,7 +150,7 @@ export default function GroupsPage() {
         </select>
         <button
           type="submit"
-          className="rounded bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700"
+          className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark"
         >
           Create Group
         </button>
@@ -155,16 +159,16 @@ export default function GroupsPage() {
       {/* Group list */}
       <div className="space-y-4">
         {groups.map((g) => (
-          <div key={g.id} className="rounded border border-gray-200 bg-white p-4">
+          <div key={g.id} className="rounded-lg border border-hacman-gray bg-hacman-dark p-4">
             <div className="flex items-center justify-between">
               <div>
-                <span className="font-medium">{g.name}</span>
-                <span className="ml-2 text-xs text-gray-400">{g.groupLevel}</span>
+                <span className="font-medium text-gray-200">{g.name}</span>
+                <span className="ml-2 text-xs text-hacman-muted">{g.groupLevel}</span>
               </div>
               <button
                 type="button"
                 onClick={() => deleteGroup(g.id)}
-                className="text-xs text-red-500 hover:underline"
+                className="text-xs text-red-400 hover:underline"
               >
                 Delete
               </button>
@@ -172,18 +176,18 @@ export default function GroupsPage() {
 
             {/* Members */}
             <div className="mt-3">
-              <p className="text-xs font-medium text-gray-500">Members</p>
+              <p className="text-xs font-medium text-hacman-muted">Members</p>
               <ul className="mt-1 flex flex-wrap gap-1">
                 {g.members.map((m) => (
                   <li
                     key={m.userId}
-                    className="flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs"
+                    className="flex items-center gap-1 rounded-lg bg-hacman-gray px-2 py-0.5 text-xs text-gray-200"
                   >
                     {m.name}
                     <button
                       type="button"
                       onClick={() => removeMember(g.id, m.userId)}
-                      className="text-red-400 hover:text-red-600"
+                      className="text-red-400 hover:text-red-300"
                       aria-label={`Remove ${m.name}`}
                     >
                       ×
@@ -200,7 +204,7 @@ export default function GroupsPage() {
                     if (e.target.value) addMember(g.id, e.target.value);
                     e.target.value = "";
                   }}
-                  className="rounded border border-gray-300 px-2 py-0.5 text-xs"
+                  className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-0.5 text-xs text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
                 >
                   <option value="">Add member…</option>
                   {users
@@ -214,18 +218,18 @@ export default function GroupsPage() {
 
             {/* Documents */}
             <div className="mt-3">
-              <p className="text-xs font-medium text-gray-500">Documents</p>
+              <p className="text-xs font-medium text-hacman-muted">Documents</p>
               <ul className="mt-1 flex flex-wrap gap-1">
                 {g.documents.map((d) => (
                   <li
                     key={d.documentId}
-                    className="flex items-center gap-1 rounded bg-blue-50 px-2 py-0.5 text-xs"
+                    className="flex items-center gap-1 rounded-lg bg-hacman-yellow/10 px-2 py-0.5 text-xs text-gray-200"
                   >
                     {d.title}
                     <button
                       type="button"
                       onClick={() => unassignDoc(g.id, d.documentId)}
-                      className="text-red-400 hover:text-red-600"
+                      className="text-red-400 hover:text-red-300"
                       aria-label={`Unassign ${d.title}`}
                     >
                       ×
@@ -242,7 +246,7 @@ export default function GroupsPage() {
                     if (e.target.value) assignDoc(g.id, e.target.value);
                     e.target.value = "";
                   }}
-                  className="rounded border border-gray-300 px-2 py-0.5 text-xs"
+                  className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-0.5 text-xs text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
                 >
                   <option value="">Assign document…</option>
                   {docs

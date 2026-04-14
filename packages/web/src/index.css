@@ -1,1 +1,43 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-hacman-yellow: #FACC15;
+  --color-hacman-yellow-light: #FEF9C3;
+  --color-hacman-yellow-dark: #CA8A04;
+  --color-hacman-black: #111111;
+  --color-hacman-dark: #1A1A1A;
+  --color-hacman-gray: #2A2A2A;
+  --color-hacman-muted: #9CA3AF;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-hacman-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-hacman-gray);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+@media print {
+  body > * {
+    visibility: hidden;
+  }
+  [data-print-area],
+  [data-print-area] * {
+    visibility: visible;
+  }
+  [data-print-area] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

@@ -6,15 +6,15 @@ const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 
 function ReportDisplay({ report }: { report: ImportReport }) {
   return (
-    <div className="mt-4 rounded border border-gray-200 bg-white p-4 text-sm">
+    <div className="mt-4 rounded-lg border border-hacman-gray bg-hacman-dark p-4 text-sm text-gray-200">
       <p>Total files: {report.totalFiles}</p>
       <p>Imported: {report.importedCount}</p>
       {report.failures.length > 0 && (
         <details className="mt-2">
-          <summary className="cursor-pointer text-red-600">
+          <summary className="cursor-pointer text-red-400">
             Failures ({report.failures.length})
           </summary>
-          <ul className="mt-1 ml-4 list-disc text-gray-600">
+          <ul className="mt-1 ml-4 list-disc text-gray-400">
             {report.failures.map((f, i) => (
               <li key={i}>{f.filePath}: {f.reason}</li>
             ))}
@@ -23,10 +23,10 @@ function ReportDisplay({ report }: { report: ImportReport }) {
       )}
       {report.warnings.length > 0 && (
         <details className="mt-2">
-          <summary className="cursor-pointer text-amber-600">
+          <summary className="cursor-pointer text-amber-400">
             Warnings ({report.warnings.length})
           </summary>
-          <ul className="mt-1 ml-4 list-disc text-gray-600">
+          <ul className="mt-1 ml-4 list-disc text-gray-400">
             {report.warnings.map((w, i) => (
               <li key={i}>{w.filePath}: {w.reason}</li>
             ))}
@@ -101,10 +101,14 @@ export default function ImportPage() {
 
   return (
     <div className="max-w-xl space-y-6">
+      <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
+        <p className="text-sm text-gray-400">Import documents from a GitHub repository or upload a ZIP of Markdown files. Existing documents with the same title will be updated.</p>
+      </div>
+
       {/* GitHub import */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">Import from GitHub</h3>
-        <p className="mb-2 text-xs text-gray-500">
+        <h3 className="mb-2 text-sm font-semibold text-gray-200">Import from GitHub</h3>
+        <p className="mb-2 text-xs text-hacman-muted">
           Supports full URLs with branch and path, e.g.
           https://github.com/owner/repo/tree/master/docs
         </p>
@@ -117,12 +121,12 @@ export default function ImportPage() {
             onChange={(e) => setRepoUrl(e.target.value)}
             placeholder="https://github.com/owner/repo/tree/master/docs"
             required
-            className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
+            className="flex-1 rounded-lg border border-hacman-gray bg-hacman-black px-3 py-1.5 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
           />
           <button
             type="submit"
             disabled={loading}
-            className="rounded bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark disabled:opacity-50"
           >
             {loading ? "Importing…" : "Import"}
           </button>
@@ -131,7 +135,7 @@ export default function ImportPage() {
 
       {/* ZIP upload */}
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-gray-700">Upload ZIP of Markdown files</h3>
+        <h3 className="mb-2 text-sm font-semibold text-gray-200">Upload ZIP of Markdown files</h3>
         <input
           ref={fileRef}
           type="file"
@@ -146,13 +150,13 @@ export default function ImportPage() {
           type="button"
           onClick={() => handleZipUpload()}
           disabled={loading}
-          className="rounded bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark disabled:opacity-50"
         >
           {loading ? "Uploading…" : "Choose ZIP & Import"}
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
       {report && <ReportDisplay report={report} />}
     </div>
   );

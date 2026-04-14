@@ -160,17 +160,17 @@ describe("Property 2: Import report accuracy", () => {
 describe("parseGitHubUrl", () => {
   it("parses standard GitHub URL", () => {
     const result = parseGitHubUrl("https://github.com/owner/repo");
-    expect(result).toEqual({ owner: "owner", repo: "repo" });
+    expect(result).toEqual({ owner: "owner", repo: "repo", branch: "main", subpath: "" });
   });
 
   it("parses GitHub URL with .git suffix", () => {
     const result = parseGitHubUrl("https://github.com/owner/repo.git");
-    expect(result).toEqual({ owner: "owner", repo: "repo" });
+    expect(result).toEqual({ owner: "owner", repo: "repo", branch: "main", subpath: "" });
   });
 
   it("parses GitHub URL with trailing slash", () => {
     const result = parseGitHubUrl("https://github.com/owner/repo/");
-    expect(result).toEqual({ owner: "owner", repo: "repo" });
+    expect(result).toEqual({ owner: "owner", repo: "repo", branch: "main", subpath: "" });
   });
 
   it("returns null for non-GitHub URLs", () => {
@@ -188,8 +188,13 @@ describe("parseGitHubUrl", () => {
     expect(parseGitHubUrl("https://github.com/")).toBeNull();
   });
 
-  it("handles URLs with extra path segments", () => {
+  it("handles URLs with branch", () => {
     const result = parseGitHubUrl("https://github.com/owner/repo/tree/main");
-    expect(result).toEqual({ owner: "owner", repo: "repo" });
+    expect(result).toEqual({ owner: "owner", repo: "repo", branch: "main", subpath: "" });
+  });
+
+  it("handles URLs with branch and subpath", () => {
+    const result = parseGitHubUrl("https://github.com/owner/repo/tree/master/docs");
+    expect(result).toEqual({ owner: "owner", repo: "repo", branch: "master", subpath: "docs" });
   });
 });

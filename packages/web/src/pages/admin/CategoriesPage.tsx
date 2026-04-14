@@ -53,10 +53,14 @@ export default function CategoriesPage() {
     load();
   };
 
-  if (loading) return <p className="text-gray-400">Loading categories…</p>;
+  if (loading) return <p className="text-hacman-muted">Loading categories…</p>;
 
   return (
     <div className="max-w-xl">
+      <div className="mb-4 rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
+        <p className="text-sm text-gray-400">Organise documents into categories and subcategories. Categories appear in the sidebar navigation for easy browsing.</p>
+      </div>
+
       <form onSubmit={create} className="mb-4 flex gap-2">
         <input
           type="text"
@@ -64,7 +68,7 @@ export default function CategoriesPage() {
           onChange={(e) => setName(e.target.value)}
           placeholder="Category name"
           required
-          className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
+          className="flex-1 rounded-lg border border-hacman-gray bg-hacman-black px-3 py-1.5 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
         />
         <label htmlFor="parent-select" className="sr-only">
           Parent category
@@ -73,7 +77,7 @@ export default function CategoriesPage() {
           id="parent-select"
           value={parentId}
           onChange={(e) => setParentId(e.target.value)}
-          className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+          className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1.5 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
         >
           <option value="">No parent</option>
           {categories.map((c) => (
@@ -84,7 +88,7 @@ export default function CategoriesPage() {
         </select>
         <button
           type="submit"
-          className="rounded bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700"
+          className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark"
         >
           Add
         </button>
@@ -94,7 +98,7 @@ export default function CategoriesPage() {
         {categories.map((c) => (
           <li
             key={c.id}
-            className="flex items-center gap-2 rounded border border-gray-100 px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-lg border border-hacman-gray px-3 py-2 text-sm"
           >
             {editId === c.id ? (
               <>
@@ -102,12 +106,12 @@ export default function CategoriesPage() {
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm"
+                  className="flex-1 rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
                 />
                 <button
                   type="button"
                   onClick={() => update(c.id)}
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-hacman-yellow hover:underline"
                 >
                   Save
                 </button>
@@ -121,10 +125,10 @@ export default function CategoriesPage() {
               </>
             ) : (
               <>
-                <span className="flex-1">
+                <span className="flex-1 text-gray-200">
                   {c.name}
                   {c.parentId && (
-                    <span className="ml-1 text-xs text-gray-400">
+                    <span className="ml-1 text-xs text-hacman-muted">
                       (sub of{" "}
                       {categories.find((p) => p.id === c.parentId)?.name ??
                         c.parentId}
@@ -138,14 +142,14 @@ export default function CategoriesPage() {
                     setEditId(c.id);
                     setEditName(c.name);
                   }}
-                  className="text-xs text-blue-600 hover:underline"
+                  className="text-xs text-hacman-yellow hover:underline"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => remove(c.id)}
-                  className="text-xs text-red-500 hover:underline"
+                  className="text-xs text-red-400 hover:underline"
                 >
                   Delete
                 </button>

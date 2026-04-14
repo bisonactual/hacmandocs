@@ -21,6 +21,24 @@ export type {
 
   // Service interfaces
   MarkdownConverter,
+
+  // Tool Induction types
+  QuizStatus,
+  QuestionType,
+  CertificationStatus,
+  ExpiryNotificationType,
+  ToolRecord,
+  Quiz,
+  Question,
+  QuizAttempt,
+  Certification,
+  InductionChecklist,
+  InductionChecklistItem,
+  ChecklistSection,
+  InductionSignoff,
+  ToolArea,
+  ToolTrainer,
+  AreaLeader,
 } from './types.js';
 
 export { parseMarkdown, parseMarkdownWithWarnings, toMarkdown, markdownConverter } from './markdown.js';

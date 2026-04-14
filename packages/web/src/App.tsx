@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
@@ -12,14 +12,113 @@ import ImportPage from "./pages/admin/ImportPage";
 import ExportPage from "./pages/admin/ExportPage";
 import CategoriesPage from "./pages/admin/CategoriesPage";
 import GroupsPage from "./pages/admin/GroupsPage";
+import MemberProfilePage from "./pages/inductions/MemberProfilePage";
+import QuizTakingPage from "./pages/inductions/QuizTakingPage";
+import TrainerDashboardPage from "./pages/inductions/TrainerDashboardPage";
+import SignoffFormPage from "./pages/inductions/SignoffFormPage";
+import ChecklistPage from "./pages/inductions/ChecklistPage";
+import ToolsPage from "./pages/admin/ToolsPage";
+import QuizzesPage from "./pages/admin/QuizzesPage";
+import AreasPage from "./pages/admin/AreasPage";
+import { useAuth } from "./hooks/useAuth";
 
 function HomePage() {
+  const { user } = useAuth();
+
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-gray-800">Welcome</h2>
-      <p className="mt-2 text-gray-600">
-        Select a document from the sidebar to get started.
-      </p>
+    <div className="mx-auto max-w-4xl space-y-8 py-4">
+      {/* Welcome banner */}
+      <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-8">
+        <h2 className="text-2xl font-bold text-white">
+          {user ? `Welcome back, ${user.name || user.email}` : "Welcome to HACMAN"}
+        </h2>
+        <p className="mt-2 text-hacman-muted">
+          Documentation &amp; Training Portal for Hackspace Manchester
+        </p>
+        {!user && (
+          <div className="mt-4 flex items-center gap-4">
+            <Link
+              to="/login"
+              className="rounded-lg bg-hacman-yellow px-5 py-2.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors"
+            >
+              Sign in for training
+            </Link>
+            <span className="text-sm text-hacman-muted">
+              or browse the docs freely — no account needed
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Quick actions for logged-in users */}
+      {user && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Link
+            to="/inductions/profile"
+            className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5"
+          >
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-hacman-yellow/10 text-xl">
+              🎓
+            </div>
+            <h3 className="font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+              My Training
+            </h3>
+            <p className="mt-1 text-sm text-hacman-muted">
+              View certifications, take quizzes, and track your progress
+            </p>
+          </Link>
+
+          <Link
+            to="/inductions/trainer"
+            className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5"
+          >
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-hacman-yellow/10 text-xl">
+              👨‍🏫
+            </div>
+            <h3 className="font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+              Trainer Dashboard
+            </h3>
+            <p className="mt-1 text-sm text-hacman-muted">
+              Manage sign-offs and review member inductions
+            </p>
+          </Link>
+
+          <Link
+            to="/search"
+            className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5"
+          >
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-hacman-yellow/10 text-xl">
+              🔍
+            </div>
+            <h3 className="font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+              Search Docs
+            </h3>
+            <p className="mt-1 text-sm text-hacman-muted">
+              Find documentation, guides, and training materials
+            </p>
+          </Link>
+        </div>
+      )}
+
+      {/* Info cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-5">
+          <h3 className="flex items-center gap-2 font-semibold text-white">
+            <span className="text-hacman-yellow">📄</span> Documentation
+          </h3>
+          <p className="mt-2 text-sm text-hacman-muted">
+            Browse workshop guides, equipment manuals, and safety procedures using the sidebar navigation. No login required.
+          </p>
+        </div>
+        <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-5">
+          <h3 className="flex items-center gap-2 font-semibold text-white">
+            <span className="text-hacman-yellow">🔧</span> Tool Training
+          </h3>
+          <p className="mt-2 text-sm text-hacman-muted">
+            Complete inductions for workshop tools. Take online inductions and complete refresher courses.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -53,6 +152,46 @@ export default function App() {
           }
         />
         <Route
+          path="/inductions/profile"
+          element={
+            <ProtectedRoute>
+              <MemberProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inductions/quiz/:id"
+          element={
+            <ProtectedRoute>
+              <QuizTakingPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inductions/trainer"
+          element={
+            <ProtectedRoute>
+              <TrainerDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inductions/signoff/:toolId"
+          element={
+            <ProtectedRoute>
+              <SignoffFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inductions/checklist/:toolId"
+          element={
+            <ProtectedRoute>
+              <ChecklistPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin"
           element={
             <ProtectedRoute>
@@ -64,8 +203,11 @@ export default function App() {
           <Route path="users" element={<UsersPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="groups" element={<GroupsPage />} />
+          <Route path="areas" element={<AreasPage />} />
           <Route path="import" element={<ImportPage />} />
           <Route path="export" element={<ExportPage />} />
+          <Route path="tools" element={<ToolsPage />} />
+          <Route path="quizzes" element={<QuizzesPage />} />
         </Route>
       </Route>
 

@@ -67,7 +67,7 @@ member.post("/login", async (c) => {
     permissionLevel = existing.permissionLevel;
     await db
       .update(users)
-      .set({ updatedAt: now })
+      .set({ username, updatedAt: now })
       .where(eq(users.id, userId))
       .run();
   } else {
@@ -79,6 +79,7 @@ member.post("/login", async (c) => {
         id: userId,
         email: "",
         name: username,
+        username,
         authMethod: "member",
         externalId: username,
         permissionLevel,
@@ -94,6 +95,7 @@ member.post("/login", async (c) => {
     userId,
     "member",
     permissionLevel as import("@hacmandocs/shared").PermissionLevel,
+    username,
   );
 
   return c.json({ token: session.token, expiresAt: session.expiresAt });

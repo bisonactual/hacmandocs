@@ -177,6 +177,7 @@ describe('Property 18: Expired sessions are denied', () => {
             userId,
             authMethod,
             permissionLevel,
+            username: null,
             expiresAt: expiredAt,
           };
           await kv.put(token, JSON.stringify(data));

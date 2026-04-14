@@ -11,8 +11,11 @@ import proposalsApp from "./routes/proposals";
 import searchApp from "./routes/search";
 import groupsApp from "./routes/groups";
 import notificationsApp from "./routes/notifications";
+import inductionsApp from "./routes/inductions";
 import type { SessionData } from "./auth/session";
 import { authMiddleware, optionalAuthMiddleware } from "./middleware/auth";
+import { requireUsernameMiddleware } from "./middleware/require-username";
+import { processExpiryNotifications } from "./services/expiry-cron";
 
 export type Env = {
   Bindings: {
@@ -24,6 +27,7 @@ export type Env = {
     OAUTH_PROVIDER: string;
     MEMBER_API_URL: string;
     GITHUB_TOKEN?: string;
+    RESEND_API_KEY?: string;
   };
   Variables: {
     session: SessionData;
@@ -60,6 +64,9 @@ app.use("/api/search", optionalAuthMiddleware);
 // All other /api/* routes require authentication
 app.use("/api/*", authMiddleware);
 
+// Require username to be set (exempt /api/users/me and /api/users/me/username)
+app.use("/api/*", requireUsernameMiddleware);
+
 // API routes
 app.route("/api/users", usersApp);
 app.route("/api/documents", documentsApp);
@@ -70,5 +77,15 @@ app.route("/api/proposals", proposalsApp);
 app.route("/api/search", searchApp);
 app.route("/api/groups", groupsApp);
 app.route("/api/notifications", notificationsApp);
+app.route("/api/inductions", inductionsApp);
 
-export default app;
+export default {
+  fetch: app.fetch,
+  async scheduled(
+    _event: ScheduledEvent,
+    env: Env["Bindings"],
+    _ctx: ExecutionContext,
+  ) {
+    await processExpiryNotifications(env);
+  },
+};

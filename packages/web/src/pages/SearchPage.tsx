@@ -40,30 +40,35 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h2 className="mb-4 text-xl font-semibold text-gray-800">
+      <h2 className="mb-4 text-xl font-semibold text-white">
         Search results{query ? ` for "${query}"` : ""}
       </h2>
 
-      {loading && <p className="text-gray-400">Searching…</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {loading && (
+        <div className="flex items-center gap-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" />
+          <span className="text-hacman-muted">Searching…</span>
+        </div>
+      )}
+      {error && <p className="text-red-400">{error}</p>}
 
       {!loading && !error && results.length === 0 && query && (
-        <p className="text-gray-500">No documents matched your query.</p>
+        <p className="text-hacman-muted">No documents matched your query.</p>
       )}
 
-      <ul className="space-y-4">
+      <ul className="space-y-3">
         {results.map((r) => (
-          <li key={r.id} className="rounded-md border border-gray-200 bg-white p-4">
+          <li key={r.id} className="rounded-xl border border-hacman-gray bg-hacman-dark p-4 transition hover:border-hacman-yellow/30">
             <Link
               to={`/documents/${r.id}`}
-              className="text-lg font-medium text-blue-600 hover:underline"
+              className="text-lg font-medium text-hacman-yellow hover:underline"
             >
               {r.title}
             </Link>
-            <p className="mt-1 text-xs text-gray-400">
+            <p className="mt-1 text-xs text-hacman-muted">
               {r.category} · Last modified: {formatDate(r.lastModified)}
             </p>
-            <p className="mt-1 text-sm text-gray-600">{r.snippet}</p>
+            <p className="mt-1 text-sm text-gray-400">{r.snippet}</p>
           </li>
         ))}
       </ul>

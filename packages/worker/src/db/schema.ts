@@ -18,6 +18,7 @@ export const users = sqliteTable(
     authMethod: text("auth_method").notNull(),
     externalId: text("external_id").notNull(),
     permissionLevel: text("permission_level").notNull(),
+    username: text("username"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -185,3 +186,186 @@ export const notifications = sqliteTable("notifications", {
   isRead: integer("is_read").notNull().default(0),
   createdAt: integer("created_at").notNull(),
 });
+
+// ── Tool Induction Tables ────────────────────────────────────────────
+
+export const quizzes = sqliteTable(
+  "quizzes",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    description: text("description"),
+    showWrongAnswers: integer("show_wrong_answers").notNull().default(1),
+    status: text("status").notNull().default("draft"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    check(
+      "quiz_status_check",
+      sql`${table.status} IN ('draft', 'published', 'archived')`
+    ),
+  ]
+);
+
+export const questions = sqliteTable(
+  "questions",
+  {
+    id: text("id").primaryKey(),
+    quizId: text("quiz_id")
+      .notNull()
+      .references(() => quizzes.id),
+    questionText: text("question_text").notNull(),
+    questionType: text("question_type").notNull(),
+    optionsJson: text("options_json").notNull(),
+    correctOptionIndex: integer("correct_option_index").notNull(),
+    correctOptionIndicesJson: text("correct_option_indices_json"), // JSON array for multi_select
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [
+    check(
+      "question_type_check",
+      sql`${table.questionType} IN ('multiple_choice', 'true_false', 'multi_select')`
+    ),
+  ]
+);
+
+export const toolRecords = sqliteTable(
+  "tool_records",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    quizId: text("quiz_id")
+      .references(() => quizzes.id),
+    preInductionQuizId: text("pre_induction_quiz_id")
+      .references(() => quizzes.id),
+    refresherQuizId: text("refresher_quiz_id")
+      .references(() => quizzes.id),
+    retrainingIntervalDays: integer("retraining_interval_days"),
+    areaId: text("area_id"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+);
+
+export const quizAttempts = sqliteTable("quiz_attempts", {
+  id: text("id").primaryKey(),
+  quizId: text("quiz_id")
+    .notNull()
+    .references(() => quizzes.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  answersJson: text("answers_json").notNull(),
+  score: integer("score").notNull(),
+  passed: integer("passed").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+export const certifications = sqliteTable("certifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  toolRecordId: text("tool_record_id")
+    .notNull()
+    .references(() => toolRecords.id),
+  quizAttemptId: text("quiz_attempt_id")
+    .references(() => quizAttempts.id),
+  signoffId: text("signoff_id"),
+  completedAt: integer("completed_at").notNull(),
+  expiresAt: integer("expires_at"),
+});
+
+export const notificationEmails = sqliteTable("notification_emails", {
+  id: text("id").primaryKey(),
+  certificationId: text("certification_id")
+    .notNull()
+    .references(() => certifications.id),
+  notificationType: text("notification_type").notNull(),
+  sentAt: integer("sent_at").notNull(),
+  success: integer("success").notNull(),
+  errorMessage: text("error_message"),
+});
+
+// ── Induction Checklists ─────────────────────────────────────────────
+
+export const inductionChecklists = sqliteTable("induction_checklists", {
+  id: text("id").primaryKey(),
+  toolRecordId: text("tool_record_id")
+    .notNull()
+    .references(() => toolRecords.id),
+  sectionTitle: text("section_title").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+export const inductionChecklistItems = sqliteTable("induction_checklist_items", {
+  id: text("id").primaryKey(),
+  checklistId: text("checklist_id")
+    .notNull()
+    .references(() => inductionChecklists.id),
+  itemText: text("item_text").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+// ── Induction Signoffs ───────────────────────────────────────────────
+
+export const inductionSignoffs = sqliteTable("induction_signoffs", {
+  id: text("id").primaryKey(),
+  toolRecordId: text("tool_record_id")
+    .notNull()
+    .references(() => toolRecords.id),
+  trainerId: text("trainer_id")
+    .notNull()
+    .references(() => users.id),
+  inducteeFullName: text("inductee_full_name").notNull(),
+  inducteeUsername: text("inductee_username").notNull(),
+  inducteeUserId: text("inductee_user_id").references(() => users.id),
+  trainerConfirmed: integer("trainer_confirmed").notNull().default(0),
+  inducteeConfirmed: integer("inductee_confirmed").notNull().default(0),
+  signedAt: integer("signed_at").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+// ── Tool Areas ───────────────────────────────────────────────────────
+
+export const toolAreas = sqliteTable("tool_areas", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  createdAt: integer("created_at").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+});
+
+// ── Tool Trainers (many-to-many) ─────────────────────────────────────
+
+export const toolTrainers = sqliteTable(
+  "tool_trainers",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    toolRecordId: text("tool_record_id")
+      .notNull()
+      .references(() => toolRecords.id),
+    assignedAt: integer("assigned_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.toolRecordId] })]
+);
+
+// ── Area Leaders (many-to-many) ──────────────────────────────────────
+
+export const areaLeaders = sqliteTable(
+  "area_leaders",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    areaId: text("area_id")
+      .notNull()
+      .references(() => toolAreas.id),
+    assignedAt: integer("assigned_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.areaId] })]
+);

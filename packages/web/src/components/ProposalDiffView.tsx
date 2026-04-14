@@ -24,12 +24,12 @@ export default function ProposalDiffView({ before, after }: ProposalDiffViewProp
   const maxLen = Math.max(beforeLines.length, afterLines.length);
 
   return (
-    <div className="grid grid-cols-2 gap-0 overflow-hidden rounded border border-gray-300">
+    <div className="grid grid-cols-2 gap-0 overflow-hidden rounded-lg border border-hacman-gray">
       {/* Header */}
-      <div className="border-b border-r border-gray-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+      <div className="border-b border-r border-hacman-gray bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-400">
         Current Version
       </div>
-      <div className="border-b border-gray-300 bg-green-50 px-3 py-2 text-sm font-semibold text-green-700">
+      <div className="border-b border-hacman-gray bg-green-500/10 px-3 py-2 text-sm font-semibold text-green-400">
         Proposed Changes
       </div>
 
@@ -42,18 +42,18 @@ export default function ProposalDiffView({ before, after }: ProposalDiffViewProp
         return (
           <div key={i} className="contents">
             <div
-              className={`border-b border-r border-gray-200 px-3 py-1 text-sm ${
-                changed ? "bg-red-50 text-red-800" : "text-gray-700"
+              className={`border-b border-r border-hacman-gray/50 px-3 py-1 text-sm ${
+                changed ? "bg-red-500/10 text-red-400" : "text-gray-400"
               }`}
             >
-              {left || <span className="text-gray-300">—</span>}
+              {left || <span className="text-hacman-muted">—</span>}
             </div>
             <div
-              className={`border-b border-gray-200 px-3 py-1 text-sm ${
-                changed ? "bg-green-50 text-green-800" : "text-gray-700"
+              className={`border-b border-hacman-gray/50 px-3 py-1 text-sm ${
+                changed ? "bg-green-500/10 text-green-400" : "text-gray-400"
               }`}
             >
-              {right || <span className="text-gray-300">—</span>}
+              {right || <span className="text-hacman-muted">—</span>}
             </div>
           </div>
         );

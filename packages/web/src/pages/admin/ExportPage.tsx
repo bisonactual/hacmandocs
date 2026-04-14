@@ -52,19 +52,23 @@ export default function ExportPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <p className="text-gray-400">Loading documents…</p>;
+  if (loading) return <p className="text-hacman-muted">Loading documents…</p>;
 
   return (
     <div className="max-w-xl">
+      <div className="mb-4 rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
+        <p className="text-sm text-gray-400">Export documents as Markdown files. Select individual documents or export multiple as a ZIP archive.</p>
+      </div>
+
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-gray-400">
           {selected.size} selected
         </span>
         <button
           type="button"
           disabled={selected.size === 0}
           onClick={exportBulk}
-          className="rounded bg-blue-600 px-4 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark disabled:opacity-50"
         >
           Export selected as ZIP
         </button>
@@ -73,7 +77,7 @@ export default function ExportPage() {
         {docs.map((d) => (
           <li
             key={d.id}
-            className="flex items-center gap-2 rounded border border-gray-100 px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-lg border border-hacman-gray px-3 py-2 text-sm"
           >
             <input
               type="checkbox"
@@ -81,13 +85,13 @@ export default function ExportPage() {
               onChange={() => toggle(d.id)}
               id={`exp-${d.id}`}
             />
-            <label htmlFor={`exp-${d.id}`} className="flex-1 cursor-pointer">
+            <label htmlFor={`exp-${d.id}`} className="flex-1 cursor-pointer text-gray-200">
               {d.title}
             </label>
             <button
               type="button"
               onClick={() => exportSingle(d.id)}
-              className="text-xs text-blue-600 hover:underline"
+              className="text-xs text-hacman-yellow hover:underline"
             >
               Export
             </button>

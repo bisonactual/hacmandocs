@@ -43,7 +43,6 @@ export default function ProposeEditPage() {
           proposedContentJson: proposedContent,
         }),
       });
-      // Clear draft on successful save
       editorRef.current.clearDraft();
       navigate(`/documents/${id}`);
     } catch (e) {
@@ -53,12 +52,16 @@ export default function ProposeEditPage() {
     }
   };
 
-  if (loading) return <p className="text-gray-400">Loading document…</p>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" />
+    </div>
+  );
   if (error && !doc) {
     return (
       <div className="text-center">
-        <p className="text-red-600">{error}</p>
-        <button type="button" onClick={() => navigate(-1)} className="mt-2 text-sm text-blue-600 underline">
+        <p className="text-red-400">{error}</p>
+        <button type="button" onClick={() => navigate(-1)} className="mt-2 text-sm text-hacman-yellow underline">
           Go back
         </button>
       </div>
@@ -70,14 +73,14 @@ export default function ProposeEditPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <button type="button" onClick={() => navigate(-1)} className="mb-4 text-sm text-blue-600 underline">
+      <button type="button" onClick={() => navigate(-1)} className="mb-4 text-sm text-hacman-yellow underline">
         ← Back
       </button>
 
-      <h1 className="mb-1 text-2xl font-bold text-gray-900">Propose Edit</h1>
-      <p className="mb-4 text-sm text-gray-500">Editing: {doc.title}</p>
+      <h1 className="mb-1 text-2xl font-bold text-white">Propose Edit</h1>
+      <p className="mb-4 text-sm text-hacman-muted">Editing: {doc.title}</p>
 
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
       <RichTextEditor
         ref={editorRef}
@@ -90,14 +93,14 @@ export default function ProposeEditPage() {
           type="button"
           onClick={handleSubmit}
           disabled={submitting}
-          className="rounded bg-blue-600 px-5 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded-lg bg-hacman-yellow px-5 py-2 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark disabled:opacity-50 transition-colors"
         >
           {submitting ? "Submitting…" : "Submit Proposal"}
         </button>
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="rounded border border-gray-300 px-5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          className="rounded-lg border border-hacman-gray px-5 py-2 text-sm text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors"
         >
           Cancel
         </button>

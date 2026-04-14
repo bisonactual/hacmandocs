@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { apiFetch } from "../lib/api";
+import { useAuth } from "../hooks/useAuth";
 
 interface CategoryItem {
   id: string;
@@ -31,8 +32,6 @@ function buildTree(
   }
 
   const uncategorized: DocumentItem[] = [];
-
-  // Assign documents to their categories
   for (const doc of documents) {
     if (doc.categoryId && map.has(doc.categoryId)) {
       map.get(doc.categoryId)!.documents.push(doc);
@@ -67,17 +66,17 @@ function CategoryTreeNode({ node }: { node: CategoryNode }) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-1 rounded px-2 py-1 text-left text-sm hover:bg-gray-100"
+        className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-hacman-gray transition-colors"
         aria-expanded={expanded}
       >
-        <span className="w-4 text-gray-400">
+        <span className="w-4 text-hacman-muted text-xs">
           {hasChildren ? (expanded ? "▾" : "▸") : ""}
         </span>
-        <span className="font-medium text-gray-700">{node.name}</span>
+        <span className="font-medium text-gray-300">{node.name}</span>
       </button>
 
       {expanded && (
-        <ul className="ml-4 space-y-0.5">
+        <ul className="ml-4 mt-0.5 space-y-0.5 border-l border-hacman-gray pl-2">
           {node.children.map((child) => (
             <CategoryTreeNode key={child.id} node={child} />
           ))}
@@ -86,21 +85,15 @@ function CategoryTreeNode({ node }: { node: CategoryNode }) {
               <NavLink
                 to={`/documents/${doc.id}`}
                 className={({ isActive }) =>
-                  `flex items-center gap-1 rounded px-2 py-1 text-sm ${
+                  `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                     isActive
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-hacman-yellow/10 text-hacman-yellow"
+                      : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
                   }`
                 }
               >
-                {doc.isSensitive && (
-                  <span
-                    className="text-amber-500"
-                    title="Sensitive document"
-                    aria-label="Sensitive document"
-                  >
-                    🔒
-                  </span>
+                {!!doc.isSensitive && (
+                  <span className="text-amber-500" title="Sensitive document" aria-label="Sensitive document">🔒</span>
                 )}
                 <span className="truncate">{doc.title}</span>
               </NavLink>
@@ -116,6 +109,7 @@ export default function NavigationSidebar() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     Promise.all([
@@ -133,17 +127,28 @@ export default function NavigationSidebar() {
 
   return (
     <nav
-      className="flex h-full w-64 flex-col border-r border-gray-200 bg-white"
+      className="flex h-full w-72 flex-col border-r border-hacman-gray bg-hacman-dark"
       aria-label="Document navigation"
     >
-      <div className="border-b border-gray-200 px-4 py-3">
-        <h2 className="text-lg font-semibold text-gray-900">Documents</h2>
+      {/* Documents section header */}
+      <div className="border-b border-hacman-gray px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-hacman-yellow">📄</span>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
+            Documents
+          </h2>
+        </div>
       </div>
+
+      {/* Document tree */}
       <div className="flex-1 overflow-y-auto p-2">
         {loading ? (
-          <p className="px-2 py-4 text-sm text-gray-400">Loading…</p>
+          <div className="flex items-center gap-2 px-3 py-4">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" />
+            <span className="text-sm text-hacman-muted">Loading…</span>
+          </div>
         ) : tree.length === 0 && uncategorized.length === 0 ? (
-          <p className="px-2 py-4 text-sm text-gray-400">No documents yet</p>
+          <p className="px-3 py-4 text-sm text-hacman-muted">No documents yet</p>
         ) : (
           <ul className="space-y-0.5">
             {tree.map((node) => (
@@ -151,7 +156,7 @@ export default function NavigationSidebar() {
             ))}
             {uncategorized.length > 0 && (
               <li>
-                <p className="mt-2 px-2 py-1 text-xs font-semibold uppercase text-gray-400">
+                <p className="mt-3 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-hacman-muted">
                   Uncategorized
                 </p>
                 <ul className="space-y-0.5">
@@ -160,14 +165,14 @@ export default function NavigationSidebar() {
                       <NavLink
                         to={`/documents/${doc.id}`}
                         className={({ isActive }) =>
-                          `flex items-center gap-1 rounded px-2 py-1 text-sm ${
+                          `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                             isActive
-                              ? "bg-blue-50 text-blue-700"
-                              : "text-gray-600 hover:bg-gray-100"
+                              ? "bg-hacman-yellow/10 text-hacman-yellow"
+                              : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
                           }`
                         }
                       >
-                        {doc.isSensitive && (
+                        {!!doc.isSensitive && (
                           <span className="text-amber-500" title="Sensitive document">🔒</span>
                         )}
                         <span className="truncate">{doc.title}</span>
@@ -180,6 +185,66 @@ export default function NavigationSidebar() {
           </ul>
         )}
       </div>
+
+      {/* Training section for logged-in users */}
+      {user && (
+        <div className="border-t border-hacman-gray p-2">
+          <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-hacman-muted">
+            Training
+          </p>
+          <ul className="space-y-0.5">
+            <li>
+              <NavLink
+                to="/inductions/profile"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "bg-hacman-yellow/10 text-hacman-yellow"
+                      : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
+                  }`
+                }
+              >
+                <span>🎓</span>
+                My Training
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/inductions/trainer"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "bg-hacman-yellow/10 text-hacman-yellow"
+                      : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
+                  }`
+                }
+              >
+                <span>👨‍🏫</span>
+                Trainer Dashboard
+              </NavLink>
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {/* Admin link */}
+      {user?.permissionLevel === "Admin" && (
+        <div className="border-t border-hacman-gray p-2">
+          <NavLink
+            to="/admin"
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-hacman-yellow/10 text-hacman-yellow"
+                  : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
+              }`
+            }
+          >
+            <span>⚙️</span>
+            Admin Panel
+          </NavLink>
+        </div>
+      )}
     </nav>
   );
 }

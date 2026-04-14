@@ -147,7 +147,11 @@ async function buildCategoriesFromPaths(
 
   for (const folderPath of sorted) {
     const parts = folderPath.split("/");
-    const name = parts[parts.length - 1];
+    const rawName = parts[parts.length - 1];
+    // Strip leading numeric prefix (e.g. "0 Door Access" -> "Door Access")
+    const prefixMatch = rawName.match(/^(\d+)\s+(.+)$/);
+    const name = prefixMatch ? prefixMatch[2] : rawName;
+    const parsedOrder = prefixMatch ? parseInt(prefixMatch[1], 10) : sortOrder++;
     const parentPath = parts.length > 1 ? parts.slice(0, -1).join("/") : null;
     const parentId = parentPath ? pathToCategoryId.get(parentPath) ?? null : null;
 
@@ -163,7 +167,7 @@ async function buildCategoriesFromPaths(
       id,
       name,
       parentId,
-      sortOrder: sortOrder++,
+      sortOrder: prefixMatch ? parsedOrder : sortOrder,
       createdAt: now,
     });
 

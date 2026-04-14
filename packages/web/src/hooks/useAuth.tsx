@@ -14,6 +14,7 @@ interface AuthUser {
   id: string;
   name: string;
   email: string;
+  username: string | null;
   permissionLevel: PermissionLevel;
 }
 
@@ -45,8 +46,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) return;
 
-    apiFetch<AuthUser>("/api/users/me")
-      .then((u) => {
+    apiFetch<Record<string, unknown>>("/api/users/me")
+      .then((raw) => {
+        const u: AuthUser = {
+          id: raw.id as string,
+          name: raw.name as string,
+          email: raw.email as string,
+          username: (raw.username as string | null) ?? null,
+          permissionLevel: raw.permission_level as PermissionLevel ?? raw.permissionLevel as PermissionLevel,
+        };
         setUser(u);
         localStorage.setItem(USER_KEY, JSON.stringify(u));
       })
