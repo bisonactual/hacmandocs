@@ -1,0 +1,193 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { apiFetch } from "../../lib/api";
+
+interface ToolRow { id: string; name: string; areaId: string | null; }
+interface CompletionRow { userId: string; memberName: string; toolName: string; completedAt: number; }
+interface ExpiringRow { userId: string; memberName: string; toolName: string; expiresAt: number; daysRemaining: number; }
+interface ExpiredRow { userId: string; memberName: string; toolName: string; expiresAt: number; }
+interface AttemptRow { attemptId: string; userId: string; userName: string; quizTitle: string; toolName: string | null; score: number; passed: boolean; createdAt: number; }
+interface UserRow { id: string; name: string; }
+type Tab = "my-tools" | "completions" | "expiring" | "expired" | "attempts";
+
+export default function TrainerDashboardPage() {
+  const { user } = useAuth();
+  const [tab, setTab] = useState<Tab>("my-tools");
+  const [myTools, setMyTools] = useState<ToolRow[]>([]);
+  const [completions, setCompletions] = useState<CompletionRow[]>([]);
+  const [expiring, setExpiring] = useState<ExpiringRow[]>([]);
+  const [expired, setExpired] = useState<ExpiredRow[]>([]);
+  const [attempts, setAttempts] = useState<AttemptRow[]>([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
+  const [markToolId, setMarkToolId] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<UserRow[]>([]);
+  const [markUserId, setMarkUserId] = useState("");
+  const [markError, setMarkError] = useState("");
+
+  useEffect(() => {
+    apiFetch<ToolRow[]>("/api/inductions/trainer/my-tools")
+      .then((tools) => { setMyTools(tools); setHasAccess(true); setLoading(false); })
+      .catch((e) => { if (e.message?.includes("403") || e.message?.includes("Insufficient")) setHasAccess(false); setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    if (!hasAccess || tab === "my-tools") return;
+    setLoading(true);
+    const endpoint = tab === "completions" ? "/api/inductions/trainer/completions"
+      : tab === "expiring" ? "/api/inductions/trainer/expiring"
+      : tab === "expired" ? "/api/inductions/trainer/expired"
+      : "/api/inductions/trainer/attempts";
+    apiFetch<unknown[]>(endpoint)
+      .then((data) => {
+        if (tab === "completions") setCompletions(data as CompletionRow[]);
+        else if (tab === "expiring") setExpiring(data as ExpiringRow[]);
+        else if (tab === "expired") setExpired(data as ExpiredRow[]);
+        else setAttempts(data as AttemptRow[]);
+      })
+      .finally(() => setLoading(false));
+  }, [tab, hasAccess]);
+
+  const openMarkTrained = async (toolId: string) => {
+    setMarkToolId(toolId); setMarkError(""); setMarkUserId("");
+    try { const users = await apiFetch<UserRow[]>("/api/users"); setAllUsers(users); } catch { setAllUsers([]); }
+  };
+
+  const submitMarkTrained = async () => {
+    if (!markToolId || !markUserId) return;
+    setMarkError("");
+    try {
+      await apiFetch(`/api/inductions/trainer/tools/${markToolId}/mark-trained/${markUserId}`, { method: "POST" });
+      setMarkToolId(null);
+    } catch (e: unknown) { setMarkError(e instanceof Error ? e.message : "Failed"); }
+  };
+
+  if (loading && hasAccess === null) return <div className="flex items-center justify-center py-20"><div className="h-6 w-6 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" /></div>;
+
+  if (hasAccess === false) {
+    return (
+      <div className="mx-auto max-w-2xl py-20 text-center space-y-4">
+        <p className="text-4xl">🔧</p>
+        <h2 className="text-xl font-semibold text-white">You're not currently a trainer</h2>
+        <p className="text-hacman-muted">But we'd love your help! Contact a team leader in an area you're interested in to find out more.</p>
+      </div>
+    );
+  }
+
+  const filterByName = <T extends Record<string, unknown>>(rows: T[], field: string) =>
+    search ? rows.filter((r) => String(r[field] ?? "").toLowerCase().includes(search.toLowerCase())) : rows;
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: "my-tools", label: "My Tools" },
+    { key: "completions", label: "Completions" },
+    { key: "expiring", label: "Expiring" },
+    { key: "expired", label: "Expired" },
+    { key: "attempts", label: "Attempts" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold text-white">Trainer Dashboard</h2>
+
+      <div className="flex items-center gap-4">
+        <nav className="flex gap-1 border-b border-hacman-gray">
+          {tabs.map((t) => (
+            <button key={t.key} onClick={() => { setTab(t.key); setLoading(t.key !== "my-tools"); }}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${tab === t.key ? "border-b-2 border-hacman-yellow text-hacman-yellow" : "text-gray-400 hover:text-gray-200"}`}>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        {tab !== "my-tools" && (
+          <input type="text" placeholder="Search by name…" value={search} onChange={(e) => setSearch(e.target.value)}
+            className="rounded-md border border-hacman-gray bg-hacman-black px-3 py-1.5 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow" />
+        )}
+      </div>
+
+      {loading ? <div className="flex items-center gap-2"><div className="h-4 w-4 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" /><span className="text-hacman-muted">Loading…</span></div> : tab === "my-tools" ? (
+        <div className="space-y-2">
+          {myTools.length === 0 ? (
+            <p className="text-hacman-muted text-sm">No tools assigned to you yet.</p>
+          ) : myTools.map((tool) => (
+            <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4 transition hover:border-hacman-yellow/30">
+              <span className="font-medium text-white">{tool.name}</span>
+              <div className="flex gap-2">
+                <Link to={`/inductions/signoff/${tool.id}`} className="rounded-lg bg-hacman-yellow px-3 py-1.5 text-xs font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors">New Signoff</Link>
+                <Link to={`/inductions/checklist/${tool.id}`} className="rounded-lg border border-hacman-gray px-3 py-1.5 text-xs text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors">Checklist</Link>
+                <button onClick={() => openMarkTrained(tool.id)} className="rounded-lg border border-hacman-gray px-3 py-1.5 text-xs text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors">Mark User Trained</button>
+              </div>
+            </div>
+          ))}
+
+          {markToolId && (
+            <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-4 space-y-3">
+              <h3 className="text-sm font-medium text-gray-300">Mark User Trained — {myTools.find((t) => t.id === markToolId)?.name}</h3>
+              {markError && <p className="text-sm text-red-400">{markError}</p>}
+              {allUsers.length > 0 ? (
+                <select value={markUserId} onChange={(e) => setMarkUserId(e.target.value)} className="rounded-md border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200">
+                  <option value="">Select user…</option>
+                  {allUsers.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              ) : (
+                <input type="text" placeholder="User ID" value={markUserId} onChange={(e) => setMarkUserId(e.target.value)}
+                  className="rounded-md border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted" />
+              )}
+              <div className="flex gap-2">
+                <button onClick={submitMarkTrained} className="rounded-lg bg-hacman-yellow px-3 py-1 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors">Confirm</button>
+                <button onClick={() => setMarkToolId(null)} className="text-sm text-gray-400 hover:text-hacman-yellow transition-colors">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : tab === "completions" ? (
+        <table className="w-full text-left text-sm">
+          <thead><tr className="border-b border-hacman-gray text-hacman-muted"><th className="py-2 pr-4">Member</th><th className="py-2 pr-4">Tool</th><th className="py-2">Completed</th></tr></thead>
+          <tbody>
+            {filterByName(completions, "memberName").map((r, i) => (
+              <tr key={i} className="border-b border-hacman-gray/50"><td className="py-2 pr-4 text-gray-300">{r.memberName}</td><td className="py-2 pr-4 text-gray-300">{r.toolName}</td><td className="py-2 text-hacman-muted">{new Date(r.completedAt * 1000).toLocaleDateString()}</td></tr>
+            ))}
+            {filterByName(completions, "memberName").length === 0 && <tr><td colSpan={3} className="py-4 text-center text-hacman-muted">No completions found.</td></tr>}
+          </tbody>
+        </table>
+      ) : tab === "expiring" ? (
+        <table className="w-full text-left text-sm">
+          <thead><tr className="border-b border-hacman-gray text-hacman-muted"><th className="py-2 pr-4">Member</th><th className="py-2 pr-4">Tool</th><th className="py-2 pr-4">Expires</th><th className="py-2">Days Left</th></tr></thead>
+          <tbody>
+            {filterByName(expiring, "memberName").map((r, i) => (
+              <tr key={i} className="border-b border-hacman-gray/50"><td className="py-2 pr-4 text-gray-300">{r.memberName}</td><td className="py-2 pr-4 text-gray-300">{r.toolName}</td><td className="py-2 pr-4 text-hacman-muted">{new Date(r.expiresAt * 1000).toLocaleDateString()}</td><td className="py-2"><span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 text-xs text-amber-400">{r.daysRemaining}d</span></td></tr>
+            ))}
+            {filterByName(expiring, "memberName").length === 0 && <tr><td colSpan={4} className="py-4 text-center text-hacman-muted">No expiring certifications.</td></tr>}
+          </tbody>
+        </table>
+      ) : tab === "expired" ? (
+        <table className="w-full text-left text-sm">
+          <thead><tr className="border-b border-hacman-gray text-hacman-muted"><th className="py-2 pr-4">Member</th><th className="py-2 pr-4">Tool</th><th className="py-2">Expired On</th></tr></thead>
+          <tbody>
+            {filterByName(expired, "memberName").map((r, i) => (
+              <tr key={i} className="border-b border-hacman-gray/50"><td className="py-2 pr-4 text-gray-300">{r.memberName}</td><td className="py-2 pr-4 text-gray-300">{r.toolName}</td><td className="py-2 text-red-400">{new Date(r.expiresAt * 1000).toLocaleDateString()}</td></tr>
+            ))}
+            {filterByName(expired, "memberName").length === 0 && <tr><td colSpan={3} className="py-4 text-center text-hacman-muted">No expired certifications.</td></tr>}
+          </tbody>
+        </table>
+      ) : (
+        <table className="w-full text-left text-sm">
+          <thead><tr className="border-b border-hacman-gray text-hacman-muted"><th className="py-2 pr-4">Member</th><th className="py-2 pr-4">Quiz / Tool</th><th className="py-2 pr-4">Score</th><th className="py-2 pr-4">Result</th><th className="py-2">Date</th></tr></thead>
+          <tbody>
+            {filterByName(attempts, "userName").map((r) => (
+              <tr key={r.attemptId} className="border-b border-hacman-gray/50">
+                <td className="py-2 pr-4 text-gray-300">{r.userName}</td>
+                <td className="py-2 pr-4 text-gray-300">{r.toolName ?? r.quizTitle}{r.toolName && <span className="ml-1 text-xs text-hacman-muted">({r.quizTitle})</span>}</td>
+                <td className="py-2 pr-4 text-gray-300">{r.score}%</td>
+                <td className="py-2 pr-4">{r.passed ? <span className="rounded-full bg-green-500/20 border border-green-500/30 px-2 py-0.5 text-xs text-green-400">Pass</span> : <span className="rounded-full bg-red-500/20 border border-red-500/30 px-2 py-0.5 text-xs text-red-400">Fail</span>}</td>
+                <td className="py-2 text-hacman-muted">{new Date(r.createdAt * 1000).toLocaleDateString()}</td>
+              </tr>
+            ))}
+            {filterByName(attempts, "userName").length === 0 && <tr><td colSpan={5} className="py-4 text-center text-hacman-muted">No quiz attempts found.</td></tr>}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

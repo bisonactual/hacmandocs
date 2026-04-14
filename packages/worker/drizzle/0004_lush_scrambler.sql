@@ -1,0 +1,1 @@
+ALTER TABLE `quizzes` ADD `show_wrong_answers` integer DEFAULT 1 NOT NULL;

@@ -1,0 +1,1 @@
+ALTER TABLE `quizzes` ADD `description` text;
