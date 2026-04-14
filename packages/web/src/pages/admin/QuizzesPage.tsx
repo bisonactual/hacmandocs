@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 import ImageInsertButton from "../../components/ImageInsertButton";
 import { useImagePaste } from "../../hooks/useImagePaste";
@@ -29,15 +30,14 @@ const statusColors: Record<string, string> = {
 };
 
 export default function QuizzesPage() {
+  const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState<QuizRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newTitle, setNewTitle] = useState("");
-  const [newDesc, setNewDesc] = useState("");
   const [newShowWrong, setNewShowWrong] = useState(true);
   const [editingQuiz, setEditingQuiz] = useState<QuizRow | null>(null);
   const [editTitle, setEditTitle] = useState("");
-  const [editDesc, setEditDesc] = useState("");
   const [editShowWrong, setEditShowWrong] = useState(true);
   // Question editor state
   const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
@@ -61,9 +61,7 @@ export default function QuizzesPage() {
   const [importJson, setImportJson] = useState("");
   const [showImport, setShowImport] = useState(false);
 
-  // Paste handlers for image upload on text fields
-  const onPasteNewDesc = useImagePaste(useCallback((md: string) => setNewDesc((prev) => prev + "\n" + md), []));
-  const onPasteEditDesc = useImagePaste(useCallback((md: string) => setEditDesc((prev) => prev + "\n" + md), []));
+  // Paste handlers for image upload on question text fields
   const onPasteNewQ = useImagePaste(useCallback((md: string) => setQForm((prev) => ({ ...prev, questionText: prev.questionText + " " + md })), []));
   const onPasteEditQ = useImagePaste(useCallback((md: string) => setEqForm((prev) => ({ ...prev, questionText: prev.questionText + " " + md })), []));
 
@@ -98,14 +96,15 @@ export default function QuizzesPage() {
     if (!newTitle.trim()) return;
     setError("");
     try {
-      await apiFetch("/api/inductions/quizzes", {
+      const result = await apiFetch<{ id: string }>("/api/inductions/quizzes", {
         method: "POST",
-        body: JSON.stringify({ title: newTitle, description: newDesc || null, showWrongAnswers: newShowWrong }),
+        body: JSON.stringify({ title: newTitle, description: null, showWrongAnswers: newShowWrong }),
       });
       setNewTitle("");
-      setNewDesc("");
       setNewShowWrong(true);
       loadQuizzes();
+      // Navigate to the description editor for the newly created quiz
+      navigate(`/admin/quizzes/${result.id}/description`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Create failed");
     }
@@ -117,7 +116,7 @@ export default function QuizzesPage() {
     try {
       await apiFetch(`/api/inductions/quizzes/${editingQuiz.id}`, {
         method: "PUT",
-        body: JSON.stringify({ title: editTitle, description: editDesc || null, showWrongAnswers: editShowWrong }),
+        body: JSON.stringify({ title: editTitle, showWrongAnswers: editShowWrong }),
       });
       setEditingQuiz(null);
       loadQuizzes();
@@ -260,24 +259,13 @@ export default function QuizzesPage() {
           <label className="block text-xs text-hacman-muted">Title</label>
           <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow" />
         </div>
-        <div className="flex-1">
-          <label className="block text-xs text-hacman-muted">Description</label>
-          <textarea
-            value={newDesc}
-            onChange={(e) => setNewDesc(e.target.value)}
-            onPaste={onPasteNewDesc}
-            rows={6}
-            className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
-          />
-          <p className="mt-1 text-xs text-hacman-muted">Supports HTML and Markdown. Embed YouTube videos by pasting the URL.</p>
-          <ImageInsertButton onInsert={(md) => setNewDesc((prev) => prev + "\n" + md)} />
-        </div>
         <label className="flex items-center gap-2 text-sm text-gray-400">
           <input type="checkbox" checked={newShowWrong} onChange={(e) => setNewShowWrong(e.target.checked)} className="accent-hacman-yellow" />
           Show wrong answers on fail
         </label>
         <button onClick={createQuiz} className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark">Create Quiz</button>
         <button onClick={() => setShowImport(!showImport)} className="rounded-lg bg-hacman-gray px-4 py-1.5 text-sm text-white hover:bg-hacman-gray/80">Import JSON</button>
+        <p className="w-full text-xs text-hacman-muted">After creating, you'll be taken to the rich text description editor.</p>
       </div>
 
       {showImport && (
@@ -298,16 +286,12 @@ export default function QuizzesPage() {
         <div className="rounded-lg border border-hacman-yellow/30 bg-hacman-yellow/10 p-4 space-y-2">
           <p className="text-sm font-medium text-gray-200">Edit Quiz</p>
           <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow" />
-          <textarea
-            value={editDesc}
-            onChange={(e) => setEditDesc(e.target.value)}
-            onPaste={onPasteEditDesc}
-            placeholder="Description"
-            rows={6}
-            className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
-          />
-          <p className="text-xs text-hacman-muted">Supports HTML and Markdown. Embed YouTube videos by pasting the URL.</p>
-          <ImageInsertButton onInsert={(md) => setEditDesc((prev) => prev + "\n" + md)} />
+          <button
+            onClick={() => navigate(`/admin/quizzes/${editingQuiz.id}/description`)}
+            className="rounded-lg bg-hacman-gray px-3 py-1 text-sm text-hacman-yellow hover:bg-hacman-gray/80"
+          >
+            ✏️ Edit Description
+          </button>
           <label className="flex items-center gap-2 text-sm text-gray-400">
             <input type="checkbox" checked={editShowWrong} onChange={(e) => setEditShowWrong(e.target.checked)} className="accent-hacman-yellow" />
             Show wrong answers on fail
@@ -338,7 +322,7 @@ export default function QuizzesPage() {
                 <span className={`rounded px-2 py-0.5 text-xs ${statusColors[q.status] ?? ""}`}>{q.status}</span>
               </td>
               <td className="flex gap-2 py-2">
-                <button onClick={() => { setEditingQuiz(q); setEditTitle(q.title); setEditDesc(q.description ?? ""); setEditShowWrong(!!q.showWrongAnswers); }} className="text-xs text-hacman-yellow hover:underline">Edit</button>
+                <button onClick={() => { setEditingQuiz(q); setEditTitle(q.title); setEditShowWrong(!!q.showWrongAnswers); }} className="text-xs text-hacman-yellow hover:underline">Edit</button>
                 {q.status === "draft" && <button onClick={() => publishQuiz(q.id)} className="text-xs text-green-400 hover:underline">Publish</button>}
                 {q.status === "published" && <button onClick={() => archiveQuiz(q.id)} className="text-xs text-amber-400 hover:underline">Archive</button>}
               </td>

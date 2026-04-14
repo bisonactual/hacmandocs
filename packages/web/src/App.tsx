@@ -21,6 +21,7 @@ import SignoffFormPage from "./pages/inductions/SignoffFormPage";
 import ChecklistPage from "./pages/inductions/ChecklistPage";
 import ToolsPage from "./pages/admin/ToolsPage";
 import QuizzesPage from "./pages/admin/QuizzesPage";
+import EditQuizDescriptionPage from "./pages/admin/EditQuizDescriptionPage";
 import AreasPage from "./pages/admin/AreasPage";
 import ProposalsPage from "./pages/admin/ProposalsPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
@@ -229,6 +230,7 @@ export default function App() {
           <Route path="export" element={<ExportPage />} />
           <Route path="tools" element={<ToolsPage />} />
           <Route path="quizzes" element={<QuizzesPage />} />
+          <Route path="quizzes/:id/description" element={<EditQuizDescriptionPage />} />
           <Route path="proposals" element={<ProposalsPage />} />
         </Route>
       </Route>
