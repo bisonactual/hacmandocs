@@ -14,7 +14,7 @@ export default function AreasPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [leaderAreaId, setLeaderAreaId] = useState<string | null>(null);
-  const [leaders, setLeaders] = useState<LeaderRow[]>([]);
+  const [_leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [selectedLeaders, setSelectedLeaders] = useState<string[]>([]);
 

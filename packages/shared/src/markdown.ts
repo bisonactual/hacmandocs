@@ -62,7 +62,6 @@ function preprocessAdmonitions(markdown: string): { processed: string; admonitio
   return { processed: output.join('\n'), admonitions };
 }
 
-const ADMONITION_MARKER_RE = /^\*\*\[ADMONITION:(\w+):([^\]]*)\]\*\*$/;
 
 // ── MDAST → ProseMirror JSON ─────────────────────────────────────────
 

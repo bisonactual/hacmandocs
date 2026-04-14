@@ -200,7 +200,6 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
         editor.commands.setContent(initialContent);
       }
       // Only run when initialContent changes, not savedDraft
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialContent, editor]);
 
     useImperativeHandle(ref, () => ({

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
 import { apiFetch } from "../../lib/api";
 
 interface ToolRow { id: string; name: string; areaId: string | null; }
@@ -13,7 +12,6 @@ interface SignoffRow { id: string; trainerId: string; trainerName: string; induc
 type Tab = "my-tools" | "completions" | "expiring" | "expired" | "attempts" | "signoffs";
 
 export default function TrainerDashboardPage() {
-  const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("my-tools");
   const [myTools, setMyTools] = useState<ToolRow[]>([]);
   const [completions, setCompletions] = useState<CompletionRow[]>([]);

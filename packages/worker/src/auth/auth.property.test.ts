@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { createSession, getSession, deleteSession, type SessionData } from './session.js';
+import { createSession, getSession, type SessionData } from './session.js';
 import type { AuthMethod, PermissionLevel } from '@hacmandocs/shared';
 
 // ── Mock KV Implementation ───────────────────────────────────────────
@@ -16,7 +16,7 @@ function createMockKV(): KVNamespace {
     get(key: string) {
       return Promise.resolve(store.get(key) ?? null);
     },
-    put(key: string, value: string, _options?: unknown) {
+    put(key: string, value: string) {
       store.set(key, value);
       return Promise.resolve();
     },

@@ -30,7 +30,7 @@ export default function ToolsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [trainerToolId, setTrainerToolId] = useState<string | null>(null);
-  const [trainers, setTrainers] = useState<TrainerRow[]>([]);
+  const [_trainers, setTrainers] = useState<TrainerRow[]>([]);
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
 

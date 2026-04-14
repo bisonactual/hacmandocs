@@ -281,7 +281,7 @@ describe('round-trip', () => {
 });
 
 import { parseMarkdownWithWarnings } from './markdown.js';
-import type { ParseWarning } from './markdown.js';
+// ParseWarning type used implicitly via parseMarkdownWithWarnings return type
 
 describe('parseMarkdownWithWarnings', () => {
   it('parses valid markdown with no warnings', () => {
