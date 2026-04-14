@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createMiddleware } from "hono/factory";
 import oauth from "./auth/oauth";
 import member from "./auth/member";
 import usersApp from "./routes/users";
@@ -75,7 +76,15 @@ app.use("/api/images/:key", optionalAuthMiddleware);
 app.use("/api/leaderboard", optionalAuthMiddleware);
 
 // All other /api/* routes require authentication
-app.use("/api/*", authMiddleware);
+app.use("/api/*", createMiddleware<Env>(async (c, next) => {
+  // Skip auth for image serving — images are public (optional auth already applied above)
+  if (c.req.path.startsWith("/api/images/") && c.req.method === "GET") {
+    await next();
+    return;
+  }
+  // Delegate to the real auth middleware
+  return authMiddleware(c, next);
+}));
 
 // Require username to be set (exempt /api/users/me and /api/users/me/username)
 app.use("/api/*", requireUsernameMiddleware);
