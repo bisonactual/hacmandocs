@@ -12,6 +12,7 @@ const sections = [
     label: "Docs Portal",
     tabs: [
       { to: "/admin/categories", label: "Categories" },
+      { to: "/admin/proposals", label: "Proposals" },
       { to: "/admin/groups", label: "Visibility Groups" },
       { to: "/admin/import", label: "Import" },
       { to: "/admin/export", label: "Export" },

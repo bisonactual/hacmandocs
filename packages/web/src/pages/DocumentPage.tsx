@@ -297,7 +297,17 @@ export default function DocumentPage() {
 
   const content: DocumentNode = JSON.parse(doc.contentJson);
   const toc = extractToc(content);
-  const canPropose = user && ["Editor", "Approver", "Admin"].includes(user.permissionLevel);
+  const canPropose = !!user;
+  const isAdmin = user?.permissionLevel === "Admin";
+  const isUnpublished = doc.isPublished === 0;
+
+  const handlePublish = async () => {
+    await apiFetch(`/api/documents/${id}/publish`, {
+      method: "PUT",
+      body: JSON.stringify({ published: true }),
+    });
+    setDoc((d) => d ? { ...d, isPublished: 1 } : d);
+  };
 
   return (
     <div className="flex gap-6">
@@ -344,10 +354,23 @@ export default function DocumentPage() {
             <span>Last modified: {formatDate(doc.updatedAt)}</span>
           </div>
           {canPropose && (
-            <button type="button" onClick={() => navigate(`/documents/${id}/propose`)}
-              className="mt-3 rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors">
-              Propose Edit
-            </button>
+            <div className="mt-3 flex items-center gap-3">
+              <button type="button" onClick={() => navigate(`/documents/${id}/propose`)}
+                className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors">
+                Propose Edit
+              </button>
+              {isAdmin && isUnpublished && (
+                <button type="button" onClick={handlePublish}
+                  className="rounded-lg bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">
+                  Publish
+                </button>
+              )}
+              {isUnpublished && (
+                <span className="rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-400 border border-amber-500/30">
+                  Unpublished
+                </span>
+              )}
+            </div>
           )}
         </header>
 

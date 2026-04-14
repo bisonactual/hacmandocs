@@ -26,7 +26,7 @@ export function sectionsOverlap(a: string[], b: string[]): boolean {
 
 // ── GET / — List proposals (Editor+) ─────────────────────────────────
 
-proposalsApp.get("/", requireRole("Editor"), async (c) => {
+proposalsApp.get("/", requireRole("Viewer"), async (c) => {
   const db = drizzle(c.env.DB);
   const documentId = c.req.query("documentId");
   const status = c.req.query("status");
@@ -53,7 +53,7 @@ proposalsApp.get("/", requireRole("Editor"), async (c) => {
 
 // ── GET /:id — Get single proposal (Editor+) ────────────────────────
 
-proposalsApp.get("/:id", requireRole("Editor"), async (c) => {
+proposalsApp.get("/:id", requireRole("Viewer"), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 
@@ -72,7 +72,7 @@ proposalsApp.get("/:id", requireRole("Editor"), async (c) => {
 
 // ── POST / — Create proposal (Editor+) with section conflict detection ──
 
-proposalsApp.post("/", requireRole("Editor"), async (c) => {
+proposalsApp.post("/", requireRole("Viewer"), async (c) => {
   const session = c.get("session");
   const body = await c.req.json<{
     documentId?: string;
@@ -330,7 +330,7 @@ proposalsApp.put("/:id/reject", requireRole("Approver"), async (c) => {
 
 // ── GET /:id/diff — Diff for a proposal (Editor+) (Task 10.3) ───────
 
-proposalsApp.get("/:id/diff", requireRole("Editor"), async (c) => {
+proposalsApp.get("/:id/diff", requireRole("Viewer"), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 

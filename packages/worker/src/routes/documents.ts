@@ -72,11 +72,13 @@ documentsApp.get("/:id", async (c) => {
 
 
 /**
- * POST / — Create a new document (Editor+).
+ * POST / — Create a new document (any authenticated user).
+ * Editors+ get the document created directly (unpublished).
+ * Viewers create the document as unpublished — it will need approval.
  * Accepts title, contentJson, categoryId (optional), isSensitive (optional, Admin only).
  * Syncs FTS5 index after insert.
  */
-documentsApp.post("/", requireRole("Editor"), async (c) => {
+documentsApp.post("/", requireRole("Viewer"), async (c) => {
   const session = c.get("session");
   const body = await c.req.json<{
     title?: string;
@@ -215,6 +217,35 @@ documentsApp.put("/:id", requireRole("Editor"), async (c) => {
     .limit(1);
 
   return c.json(updated);
+});
+
+/**
+ * PUT /:id/publish — Publish or unpublish a document (Admin only).
+ */
+documentsApp.put("/:id/publish", requireRole("Admin"), async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json<{ published?: boolean }>();
+  const db = drizzle(c.env.DB);
+
+  const [existing] = await db
+    .select()
+    .from(documents)
+    .where(eq(documents.id, id))
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ error: "Document not found" }, 404);
+  }
+
+  const isPublished = body.published !== false ? 1 : 0;
+  const now = Math.floor(Date.now() / 1000);
+
+  await db
+    .update(documents)
+    .set({ isPublished, updatedAt: now })
+    .where(eq(documents.id, id));
+
+  return c.json({ success: true, isPublished });
 });
 
 /**

@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "../../lib/api";
+import ImageInsertButton from "../../components/ImageInsertButton";
+import { useImagePaste } from "../../hooks/useImagePaste";
 
 interface QuestionRow {
   id: string;
@@ -58,6 +60,12 @@ export default function QuizzesPage() {
   });
   const [importJson, setImportJson] = useState("");
   const [showImport, setShowImport] = useState(false);
+
+  // Paste handlers for image upload on text fields
+  const onPasteNewDesc = useImagePaste(useCallback((md: string) => setNewDesc((prev) => prev + "\n" + md), []));
+  const onPasteEditDesc = useImagePaste(useCallback((md: string) => setEditDesc((prev) => prev + "\n" + md), []));
+  const onPasteNewQ = useImagePaste(useCallback((md: string) => setQForm((prev) => ({ ...prev, questionText: prev.questionText + " " + md })), []));
+  const onPasteEditQ = useImagePaste(useCallback((md: string) => setEqForm((prev) => ({ ...prev, questionText: prev.questionText + " " + md })), []));
 
   const loadQuizzes = () => {
     setLoading(true);
@@ -257,10 +265,12 @@ export default function QuizzesPage() {
           <textarea
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
+            onPaste={onPasteNewDesc}
             rows={6}
             className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
           />
           <p className="mt-1 text-xs text-hacman-muted">Supports HTML and Markdown. Embed YouTube videos by pasting the URL.</p>
+          <ImageInsertButton onInsert={(md) => setNewDesc((prev) => prev + "\n" + md)} />
         </div>
         <label className="flex items-center gap-2 text-sm text-gray-400">
           <input type="checkbox" checked={newShowWrong} onChange={(e) => setNewShowWrong(e.target.checked)} className="accent-hacman-yellow" />
@@ -291,11 +301,13 @@ export default function QuizzesPage() {
           <textarea
             value={editDesc}
             onChange={(e) => setEditDesc(e.target.value)}
+            onPaste={onPasteEditDesc}
             placeholder="Description"
             rows={6}
             className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
           />
           <p className="text-xs text-hacman-muted">Supports HTML and Markdown. Embed YouTube videos by pasting the URL.</p>
+          <ImageInsertButton onInsert={(md) => setEditDesc((prev) => prev + "\n" + md)} />
           <label className="flex items-center gap-2 text-sm text-gray-400">
             <input type="checkbox" checked={editShowWrong} onChange={(e) => setEditShowWrong(e.target.checked)} className="accent-hacman-yellow" />
             Show wrong answers on fail
@@ -374,12 +386,16 @@ export default function QuizzesPage() {
           {editingQuestion && !isPublished && (
             <div className="space-y-2 rounded-lg border border-hacman-yellow/30 bg-hacman-yellow/10 p-3">
               <p className="text-xs font-medium text-hacman-yellow">Edit Question</p>
-              <input
-                value={eqForm.questionText}
-                onChange={(e) => setEqForm({ ...eqForm, questionText: e.target.value })}
-                placeholder="Question text"
-                className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  value={eqForm.questionText}
+                  onChange={(e) => setEqForm({ ...eqForm, questionText: e.target.value })}
+                  onPaste={onPasteEditQ}
+                  placeholder="Question text (supports markdown image syntax)"
+                  className="flex-1 rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
+                />
+                <ImageInsertButton onInsert={(md) => setEqForm((prev) => ({ ...prev, questionText: prev.questionText + " " + md }))} />
+              </div>
               <select
                 value={eqForm.questionType}
                 onChange={(e) => {
@@ -436,12 +452,16 @@ export default function QuizzesPage() {
           {/* Add question form */}
           <div className="space-y-2 rounded-lg border border-dashed border-hacman-gray p-3">
             <p className="text-xs font-medium text-hacman-muted">Add Question</p>
-            <input
-              value={qForm.questionText}
-              onChange={(e) => setQForm({ ...qForm, questionText: e.target.value })}
-              placeholder="Question text"
-              className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                value={qForm.questionText}
+                onChange={(e) => setQForm({ ...qForm, questionText: e.target.value })}
+                onPaste={onPasteNewQ}
+                placeholder="Question text (supports markdown image syntax)"
+                className="flex-1 rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow"
+              />
+              <ImageInsertButton onInsert={(md) => setQForm((prev) => ({ ...prev, questionText: prev.questionText + " " + md }))} />
+            </div>
             <select
               value={qForm.questionType}
               onChange={(e) => {

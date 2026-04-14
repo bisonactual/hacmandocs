@@ -238,7 +238,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       ],
       content: savedDraft ?? initialContent ?? { type: "doc", content: [{ type: "paragraph" }] },
       editorProps: {
-        handlePaste: (_view, event) => {
+        handlePaste: (view, event) => {
           const items = event.clipboardData?.items;
           if (!items) return false;
           for (const item of items) {
@@ -246,7 +246,15 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
               const file = item.getAsFile();
               if (file) {
                 uploadImageFile(file).then((src) => {
-                  editor?.chain().focus().setImage({ src }).run();
+                  // Use the view's editor instance instead of the outer variable
+                  const ed = view.dom.closest(".ProseMirror")
+                    ? view
+                    : null;
+                  if (ed) {
+                    const { tr } = view.state;
+                    const node = view.state.schema.nodes.image.create({ src });
+                    view.dispatch(tr.replaceSelectionWith(node));
+                  }
                 });
                 return true;
               }
@@ -254,12 +262,19 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           }
           return false;
         },
-        handleDrop: (_view, event) => {
+        handleDrop: (view, event) => {
           const file = event.dataTransfer?.files[0];
           if (file?.type.startsWith("image/")) {
             event.preventDefault();
             uploadImageFile(file).then((src) => {
-              editor?.chain().focus().setImage({ src }).run();
+              const { tr } = view.state;
+              const node = view.state.schema.nodes.image.create({ src });
+              const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+              if (pos) {
+                view.dispatch(tr.insert(pos.pos, node));
+              } else {
+                view.dispatch(tr.replaceSelectionWith(node));
+              }
             });
             return true;
           }

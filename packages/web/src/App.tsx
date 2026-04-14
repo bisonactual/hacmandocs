@@ -6,6 +6,7 @@ import AuthCallbackPage from "./pages/AuthCallbackPage";
 import DocumentPage from "./pages/DocumentPage";
 import ProposalPage from "./pages/ProposalPage";
 import ProposeEditPage from "./pages/ProposeEditPage";
+import CreateDocumentPage from "./pages/CreateDocumentPage";
 import SearchPage from "./pages/SearchPage";
 import AdminLayout from "./pages/admin/AdminLayout";
 import UsersPage from "./pages/admin/UsersPage";
@@ -21,6 +22,8 @@ import ChecklistPage from "./pages/inductions/ChecklistPage";
 import ToolsPage from "./pages/admin/ToolsPage";
 import QuizzesPage from "./pages/admin/QuizzesPage";
 import AreasPage from "./pages/admin/AreasPage";
+import ProposalsPage from "./pages/admin/ProposalsPage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 import SetUsernamePage from "./pages/SetUsernamePage";
 import { useAuth } from "./hooks/useAuth";
 
@@ -141,8 +144,16 @@ export default function App() {
       {/* Public layout — documents, search, home are readable without login */}
       <Route element={<Layout />}>
         <Route index element={<HomePage />} />
+        <Route path="/documents/new"
+          element={
+            <ProtectedRoute>
+              <CreateDocumentPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
 
         {/* Protected routes — require login */}
         <Route
@@ -218,6 +229,7 @@ export default function App() {
           <Route path="export" element={<ExportPage />} />
           <Route path="tools" element={<ToolsPage />} />
           <Route path="quizzes" element={<QuizzesPage />} />
+          <Route path="proposals" element={<ProposalsPage />} />
         </Route>
       </Route>
 

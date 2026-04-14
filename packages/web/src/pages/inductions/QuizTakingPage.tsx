@@ -92,11 +92,12 @@ function markdownToHtml(md: string): string {
   return output.join("\n");
 }
 
-/** Convert inline Markdown (bold, italic, links) to HTML */
+/** Convert inline Markdown (bold, italic, images, links) to HTML */
 function inlineMarkdown(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="my-2 max-w-full rounded-lg" />')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 }
 
@@ -242,7 +243,7 @@ export default function QuizTakingPage() {
               Question {qi + 1}
               {q.questionType === "multi_select" && <span className="ml-2 text-xs font-normal text-hacman-muted">(select all that apply)</span>}
             </legend>
-            <p className="mb-3 text-gray-200">{q.questionText}</p>
+            <div className="mb-3 text-gray-200" dangerouslySetInnerHTML={{ __html: inlineMarkdown(q.questionText) }} />
             <div className="space-y-2">
               {q.options.map((opt, oi) => (
                 <label key={oi} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-hacman-gray transition-colors">

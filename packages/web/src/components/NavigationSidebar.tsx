@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 
@@ -15,6 +15,7 @@ interface DocumentItem {
   title: string;
   categoryId: string | null;
   isSensitive: boolean;
+  isPublished: number;
 }
 
 interface CategoryNode extends CategoryItem {
@@ -118,7 +119,9 @@ export default function NavigationSidebar() {
     ])
       .then(([cats, docs]) => {
         setCategories(cats);
-        setDocuments(docs);
+        // Hide unpublished docs from non-admin users in the sidebar
+        const isAdmin = user?.permissionLevel === "Admin";
+        setDocuments(isAdmin ? docs : docs.filter((d) => d.isPublished));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -132,11 +135,22 @@ export default function NavigationSidebar() {
     >
       {/* Documents section header */}
       <div className="border-b border-hacman-gray px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-hacman-yellow">📄</span>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
-            Documents
-          </h2>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-hacman-yellow">📄</span>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
+              Documents
+            </h2>
+          </div>
+          {user && (
+            <Link
+              to="/documents/new"
+              className="rounded px-2 py-0.5 text-xs text-hacman-yellow hover:bg-hacman-yellow/10 transition-colors"
+              title="Create new document"
+            >
+              + New
+            </Link>
+          )}
         </div>
       </div>
 
@@ -221,6 +235,21 @@ export default function NavigationSidebar() {
               >
                 <span>👨‍🏫</span>
                 Trainer Dashboard
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/leaderboard"
+                className={({ isActive }) =>
+                  `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                    isActive
+                      ? "bg-hacman-yellow/10 text-hacman-yellow"
+                      : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
+                  }`
+                }
+              >
+                <span>🏆</span>
+                Top 5
               </NavLink>
             </li>
           </ul>
