@@ -6,9 +6,10 @@ import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
-import { useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef } from "react";
 import type { DocumentNode } from "@hacmandocs/shared";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
 const DRAFT_PREFIX = "hacmandocs_draft_";
 
 function getDraftKey(documentId: string): string {
@@ -56,10 +57,49 @@ function ToolbarButton({
   );
 }
 
+async function uploadImageFile(file: File): Promise<string> {
+  const token = localStorage.getItem("session_token");
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(`${API_URL}/api/images/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `Upload failed (${res.status})`);
+  }
+
+  const { url } = (await res.json()) as { url: string };
+  // Return full URL so it works in the editor preview
+  return url.startsWith("http") ? url : `${API_URL}${url}`;
+}
+
 function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
   if (!editor) return null;
 
+  const insertImageFromFile = async (file: File) => {
+    try {
+      const src = await uploadImageFile(file);
+      editor.chain().focus().setImage({ src }).run();
+    } catch {
+      // Fall back to URL prompt if upload fails (e.g. not logged in as admin)
+      const url = window.prompt("Upload failed. Enter image URL manually:");
+      if (url) editor.chain().focus().setImage({ src: url }).run();
+    }
+  };
+
   const addImage = useCallback(() => {
+    // Open file picker; fall back to URL prompt if cancelled
+    fileRef.current?.click();
+  }, []);
+
+  const addImageFromUrl = useCallback(() => {
     const url = window.prompt("Image URL:");
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
@@ -129,9 +169,24 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <ToolbarButton onClick={addLink} active={editor.isActive("link")} title="Add link">
         🔗 Link
       </ToolbarButton>
-      <ToolbarButton onClick={addImage} title="Add image">
-        🖼 Image
+      <ToolbarButton onClick={addImage} title="Upload image">
+        🖼 Upload
       </ToolbarButton>
+      <ToolbarButton onClick={addImageFromUrl} title="Image from URL">
+        🌐 Image URL
+      </ToolbarButton>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-hidden="true"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) insertImageFromFile(file);
+          e.target.value = "";
+        }}
+      />
 
       <span className="mx-1 border-l border-hacman-gray" />
 
@@ -182,6 +237,35 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
         TableHeader,
       ],
       content: savedDraft ?? initialContent ?? { type: "doc", content: [{ type: "paragraph" }] },
+      editorProps: {
+        handlePaste: (_view, event) => {
+          const items = event.clipboardData?.items;
+          if (!items) return false;
+          for (const item of items) {
+            if (item.type.startsWith("image/")) {
+              const file = item.getAsFile();
+              if (file) {
+                uploadImageFile(file).then((src) => {
+                  editor?.chain().focus().setImage({ src }).run();
+                });
+                return true;
+              }
+            }
+          }
+          return false;
+        },
+        handleDrop: (_view, event) => {
+          const file = event.dataTransfer?.files[0];
+          if (file?.type.startsWith("image/")) {
+            event.preventDefault();
+            uploadImageFile(file).then((src) => {
+              editor?.chain().focus().setImage({ src }).run();
+            });
+            return true;
+          }
+          return false;
+        },
+      },
       onUpdate: ({ editor: ed }) => {
         const json = ed.getJSON() as DocumentNode;
         // Persist draft to localStorage

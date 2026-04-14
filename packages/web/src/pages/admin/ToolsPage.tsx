@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
+import ImageUploader from "../../components/ImageUploader";
 
 interface ToolRow {
   id: string;
   name: string;
+  imageUrl: string | null;
   quizId: string | null;
   preInductionQuizId: string | null;
   refresherQuizId: string | null;
@@ -17,7 +19,7 @@ interface TrainerRow { userId: string; name: string; email: string; }
 interface UserRow { id: string; name: string; email: string; }
 
 const emptyForm = {
-  name: "", quizId: "", preInductionQuizId: "", refresherQuizId: "",
+  name: "", imageUrl: "" as string, quizId: "", preInductionQuizId: "", refresherQuizId: "",
   retrainingIntervalDays: "", areaId: "",
 };
 
@@ -53,6 +55,7 @@ export default function ToolsPage() {
     setError("");
     const payload = {
       name: form.name,
+      imageUrl: form.imageUrl || null,
       quizId: form.quizId || null,
       preInductionQuizId: form.preInductionQuizId || null,
       refresherQuizId: form.refresherQuizId || null,
@@ -77,6 +80,7 @@ export default function ToolsPage() {
     setEditingId(tool.id);
     setForm({
       name: tool.name,
+      imageUrl: tool.imageUrl ?? "",
       quizId: tool.quizId ?? "",
       preInductionQuizId: tool.preInductionQuizId ?? "",
       refresherQuizId: tool.refresherQuizId ?? "",
@@ -133,6 +137,10 @@ export default function ToolsPage() {
           <label className="block text-xs text-hacman-muted">Name</label>
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:ring-hacman-yellow" />
         </div>
+        <ImageUploader
+          value={form.imageUrl || null}
+          onChange={(url) => setForm({ ...form, imageUrl: url ?? "" })}
+        />
         <div>
           <label className="block text-xs text-hacman-muted">Area</label>
           <select value={form.areaId} onChange={(e) => setForm({ ...form, areaId: e.target.value })} className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow">
@@ -178,6 +186,7 @@ export default function ToolsPage() {
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-hacman-gray text-hacman-muted">
+            <th className="py-2 pr-4">Image</th>
             <th className="py-2 pr-4">Name</th>
             <th className="py-2 pr-4">Area</th>
             <th className="py-2 pr-4">Pre-Induction</th>
@@ -190,6 +199,17 @@ export default function ToolsPage() {
         <tbody>
           {tools.map((t) => (
             <tr key={t.id} className="border-b border-hacman-gray/50">
+              <td className="py-2 pr-4">
+                {t.imageUrl ? (
+                  <img
+                    src={t.imageUrl.startsWith("http") ? t.imageUrl : `${(import.meta.env.VITE_API_URL ?? "http://localhost:8787")}${t.imageUrl}`}
+                    alt={t.name}
+                    className="h-8 w-8 rounded object-cover"
+                  />
+                ) : (
+                  <span className="text-xs text-gray-500">—</span>
+                )}
+              </td>
               <td className="py-2 pr-4 text-gray-200">{t.name}</td>
               <td className="py-2 pr-4 text-xs text-gray-400">{areaName(t.areaId)}</td>
               <td className="py-2 pr-4 text-xs text-gray-400">{quizName(t.preInductionQuizId)}</td>
@@ -204,7 +224,7 @@ export default function ToolsPage() {
             </tr>
           ))}
           {tools.length === 0 && (
-            <tr><td colSpan={7} className="py-4 text-center text-hacman-muted">No tool records yet.</td></tr>
+            <tr><td colSpan={8} className="py-4 text-center text-hacman-muted">No tool records yet.</td></tr>
           )}
         </tbody>
       </table>

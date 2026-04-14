@@ -12,6 +12,7 @@ import searchApp from "./routes/search";
 import groupsApp from "./routes/groups";
 import notificationsApp from "./routes/notifications";
 import inductionsApp from "./routes/inductions";
+import imagesApp from "./routes/images";
 import seedApp from "./routes/seed";
 import type { SessionData } from "./auth/session";
 import { authMiddleware, optionalAuthMiddleware } from "./middleware/auth";
@@ -22,6 +23,7 @@ export type Env = {
   Bindings: {
     DB: D1Database;
     SESSIONS: KVNamespace;
+    IMAGES: R2Bucket;
     OAUTH_CLIENT_ID: string;
     OAUTH_CLIENT_SECRET: string;
     OAUTH_REDIRECT_URI: string;
@@ -66,6 +68,7 @@ app.use("/api/documents/*", optionalAuthMiddleware);
 app.use("/api/documents", optionalAuthMiddleware);
 app.use("/api/categories", optionalAuthMiddleware);
 app.use("/api/search", optionalAuthMiddleware);
+app.use("/api/images/:key", optionalAuthMiddleware);
 
 // All other /api/* routes require authentication
 app.use("/api/*", authMiddleware);
@@ -84,6 +87,7 @@ app.route("/api/search", searchApp);
 app.route("/api/groups", groupsApp);
 app.route("/api/notifications", notificationsApp);
 app.route("/api/inductions", inductionsApp);
+app.route("/api/images", imagesApp);
 app.route("/api/seed", seedApp);
 
 export default {

@@ -235,6 +235,7 @@ export const toolRecords = sqliteTable(
   {
     id: text("id").primaryKey(),
     name: text("name").notNull().unique(),
+    imageUrl: text("image_url"),
     quizId: text("quiz_id")
       .references(() => quizzes.id),
     preInductionQuizId: text("pre_induction_quiz_id")

@@ -138,6 +138,7 @@ export type ExpiryNotificationType = 'warning_14d' | 'expired' | 'post_expiry_30
 export interface ToolRecord {
   id: string;
   name: string;
+  imageUrl: string | null;
   quizId: string | null;
   preInductionQuizId: string | null;
   refresherQuizId: string | null;

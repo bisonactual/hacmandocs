@@ -57,6 +57,13 @@
       "when": 1776400000000,
       "tag": "0007_tool_areas_and_trainers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1776500000000,
+      "tag": "0008_add_tool_image",
+      "breakpoints": true
     }
   ]
 }

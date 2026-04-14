@@ -12,5 +12,9 @@ migrations_dir = "drizzle"
 binding = "SESSIONS"
 id = "537f4dd00fe644558127fdbfef54e096"
 
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "hacmandocs-images"
+
 [triggers]
 crons = ["0 8 * * *"]

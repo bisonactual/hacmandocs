@@ -43,6 +43,7 @@ inductionsApp.get("/tools", async (c) => {
 inductionsApp.post("/tools", requireRole("Admin"), async (c) => {
   const body = await c.req.json<{
     name?: string;
+    imageUrl?: string | null;
     quizId?: string | null;
     preInductionQuizId?: string | null;
     refresherQuizId?: string | null;
@@ -62,6 +63,7 @@ inductionsApp.post("/tools", requireRole("Admin"), async (c) => {
     await db.insert(toolRecords).values({
       id: crypto.randomUUID(),
       name: body.name!.trim(),
+      imageUrl: body.imageUrl ?? null,
       quizId: body.quizId ?? null,
       preInductionQuizId: body.preInductionQuizId ?? null,
       refresherQuizId: body.refresherQuizId ?? null,
@@ -91,6 +93,7 @@ inductionsApp.put("/tools/:id", requireRole("Admin"), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{
     name?: string;
+    imageUrl?: string | null;
     quizId?: string | null;
     preInductionQuizId?: string | null;
     refresherQuizId?: string | null;
@@ -113,6 +116,7 @@ inductionsApp.put("/tools/:id", requireRole("Admin"), async (c) => {
   // Merge existing values with updates for validation
   const merged = {
     name: body.name ?? existing.name,
+    imageUrl: body.imageUrl !== undefined ? body.imageUrl : existing.imageUrl,
     quizId: body.quizId !== undefined ? body.quizId : existing.quizId,
     preInductionQuizId: body.preInductionQuizId !== undefined ? body.preInductionQuizId : existing.preInductionQuizId,
     refresherQuizId: body.refresherQuizId !== undefined ? body.refresherQuizId : existing.refresherQuizId,
@@ -135,6 +139,7 @@ inductionsApp.put("/tools/:id", requireRole("Admin"), async (c) => {
       .update(toolRecords)
       .set({
         name: merged.name.trim(),
+        imageUrl: merged.imageUrl,
         quizId: merged.quizId,
         preInductionQuizId: merged.preInductionQuizId,
         refresherQuizId: merged.refresherQuizId,
