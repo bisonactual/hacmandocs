@@ -324,8 +324,9 @@ importApp.post("/", requireRole("Admin"), async (c) => {
 importApp.post("/zip", requireRole("Admin"), async (c) => {
   const session = c.get("session");
   const formData = await c.req.formData();
-  const file = formData.get("file");
-  if (!file || typeof file === "string") return c.json({ error: "A ZIP file is required" }, 400);
+  const rawFile = formData.get("file");
+  if (!rawFile || typeof rawFile === "string") return c.json({ error: "A ZIP file is required" }, 400);
+  const file = rawFile as unknown as { arrayBuffer(): Promise<ArrayBuffer> };
 
   const { unzipSync } = await import("fflate");
   const zipData = new Uint8Array(await file.arrayBuffer());
