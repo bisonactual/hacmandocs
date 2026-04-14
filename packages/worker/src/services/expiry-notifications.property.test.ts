@@ -35,7 +35,7 @@ describe('Property 13: Expiry notification scheduling with deduplication', () =>
 
   const certsArb = fc.array(refresherCertArb, { minLength: 0, maxLength: 20 });
 
-  const notificationTypeArb: fc.Arbitrary<ExpiryNotificationType> =
+  const _notificationTypeArb: fc.Arbitrary<ExpiryNotificationType> =
     fc.constantFrom('warning_14d', 'expired', 'post_expiry_30d');
 
   it('warning_14d is produced only when 0 < expiresAt - now <= 14 days', () => {

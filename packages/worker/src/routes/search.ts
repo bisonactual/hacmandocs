@@ -2,8 +2,7 @@ import { Hono } from "hono";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
-import { documents, documentVisibility, visibilityGroupMembers } from "../db/schema";
+import { documentVisibility, visibilityGroupMembers } from "../db/schema";
 
 const searchApp = new Hono<Env>();
 

@@ -7,7 +7,7 @@ import type { PermissionLevel, GroupLevel } from '@hacmandocs/shared';
 const ALL_LEVELS: readonly PermissionLevel[] = ['Viewer', 'Editor', 'Approver', 'Admin'];
 const VALID_GROUP_LEVELS: readonly GroupLevel[] = ['Member', 'Non_Member', 'Team_Leader', 'Manager', 'Board_Member'];
 
-const LEVEL_RANK: Record<PermissionLevel, number> = {
+const _LEVEL_RANK: Record<PermissionLevel, number> = {
   Viewer: 0,
   Editor: 1,
   Approver: 2,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import type { Certification, ToolRecord } from '@hacmandocs/shared';
+import type { Certification } from '@hacmandocs/shared';
 import {
   createCertification,
   getCertificationStatus,
