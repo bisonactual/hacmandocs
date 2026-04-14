@@ -5,6 +5,7 @@ node_modules/
 dist/
 packages/web/dist/
 packages/worker/dist/
+packages/worker/src/seed-data.json
 
 # Wrangler local state (D1, KV, etc.)
 .wrangler/

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "tsx ../../scripts/build-seed.ts && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
     "generate": "drizzle-kit generate",
