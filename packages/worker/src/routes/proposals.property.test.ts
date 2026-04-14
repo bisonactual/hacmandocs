@@ -36,7 +36,7 @@ const sectionArrayArb = (minLen = 0, maxLen = 8): fc.Arbitrary<string[]> =>
   fc.uniqueArray(sectionIdArb, { minLength: minLen, maxLength: maxLen });
 
 /** Generate a positive unix timestamp. */
-const timestampArb = fc.integer({ min: 1_000_000_000, max: 2_000_000_000 });
+const _timestampArb = fc.integer({ min: 1_000_000_000, max: 2_000_000_000 });
 
 /** Generate a non-empty rejection reason. */
 const rejectionReasonArb = fc

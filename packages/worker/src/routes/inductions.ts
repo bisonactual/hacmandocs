@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, like, lte, gt, lt } from "drizzle-orm";
+import { eq, and, lte, gt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";

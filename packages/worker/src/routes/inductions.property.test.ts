@@ -189,7 +189,7 @@ describe("Property 5: Published quiz immutability", () => {
   }
 
   function canAddQuestion(
-    quizStatus: QuizStatus,
+    _quizStatus: QuizStatus,
   ): { allowed: boolean; error?: string } {
     // Adding new questions is always allowed regardless of status
     return { allowed: true };
@@ -205,7 +205,7 @@ describe("Property 5: Published quiz immutability", () => {
 
   it("editing existing questions on a published quiz is always rejected", () => {
     fc.assert(
-      fc.property(questionArb, nonEmptyStringArb, (question, newText) => {
+      fc.property(questionArb, nonEmptyStringArb, (_question, _newText) => {
         const result = canModifyQuestion("published", question.id);
         expect(result.allowed).toBe(false);
         expect(result.error).toBeDefined();

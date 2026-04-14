@@ -146,9 +146,9 @@ describe("Category validation logic", () => {
 // ── FTS5 SQL pattern tests ───────────────────────────────────────────
 
 describe("FTS5 index sync SQL patterns", () => {
-  const testId = "test-doc-id";
-  const testTitle = "Test Document";
-  const testContentText = "Some plain text content";
+  const _testId = "test-doc-id";
+  const _testTitle = "Test Document";
+  const _testContentText = "Some plain text content";
 
   it("INSERT SQL uses correct table and columns", () => {
     const sql =

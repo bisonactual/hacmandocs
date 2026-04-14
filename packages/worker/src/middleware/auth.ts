@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import type { Env } from "../index";
-import { getSession, type SessionData } from "../auth/session";
+import { getSession } from "../auth/session";
 
 /**
  * Auth middleware — reads session token from Authorization header or
