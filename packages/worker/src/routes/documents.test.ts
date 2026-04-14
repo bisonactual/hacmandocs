@@ -74,7 +74,7 @@ describe("extractPlainText", () => {
 describe("Document validation logic", () => {
   it("rejects empty title", () => {
     const title = "";
-    expect(!title || !title.trim()).toBe(true);
+    expect(title.trim().length === 0).toBe(true);
   });
 
   it("rejects whitespace-only title", () => {
@@ -108,7 +108,7 @@ describe("Document validation logic", () => {
 describe("Category validation logic", () => {
   it("rejects empty category name", () => {
     const name = "";
-    expect(!name || !name.trim()).toBe(true);
+    expect(name.trim().length === 0).toBe(true);
   });
 
   it("rejects whitespace-only category name", () => {
