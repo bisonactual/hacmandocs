@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Link } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import DocumentPage from "./pages/DocumentPage";
 import ProposalPage from "./pages/ProposalPage";
 import ProposeEditPage from "./pages/ProposeEditPage";
@@ -127,6 +128,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
       {/* Public layout — documents, search, home are readable without login */}
       <Route element={<Layout />}>

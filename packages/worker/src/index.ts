@@ -28,6 +28,7 @@ export type Env = {
     MEMBER_API_URL: string;
     GITHUB_TOKEN?: string;
     RESEND_API_KEY?: string;
+    FRONTEND_URL?: string;
   };
   Variables: {
     session: SessionData;

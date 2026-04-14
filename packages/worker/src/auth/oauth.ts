@@ -166,7 +166,12 @@ oauth.get("/callback", async (c) => {
     username,
   );
 
-  return c.json({ token: session.token, expiresAt: session.expiresAt });
+  // Redirect back to the frontend with the token
+  const frontendUrl = c.env.FRONTEND_URL ?? "http://localhost:5173";
+  const redirectUrl = new URL("/auth/callback", frontendUrl);
+  redirectUrl.searchParams.set("token", session.token);
+  redirectUrl.searchParams.set("expiresAt", String(session.expiresAt));
+  return c.redirect(redirectUrl.toString());
 });
 
 export default oauth;
