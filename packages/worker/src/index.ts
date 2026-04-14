@@ -28,6 +28,9 @@ export type Env = {
     OAUTH_CLIENT_SECRET: string;
     OAUTH_REDIRECT_URI: string;
     OAUTH_PROVIDER: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+    GOOGLE_REDIRECT_URI: string;
     MEMBER_API_URL: string;
     GITHUB_TOKEN?: string;
     RESEND_API_KEY?: string;

@@ -1004,6 +1004,7 @@ inductionsApp.get("/profile/me", async (c) => {
     allToolRecords.map((tr) => ({
       id: tr.id,
       name: tr.name,
+      imageUrl: tr.imageUrl,
       quizId: tr.quizId,
       preInductionQuizId: tr.preInductionQuizId,
       refresherQuizId: tr.refresherQuizId,

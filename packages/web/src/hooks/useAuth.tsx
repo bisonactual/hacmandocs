@@ -23,7 +23,7 @@ interface AuthContextValue {
   token: string | null;
   loading: boolean;
   loginWithMember: (username: string, password: string) => Promise<void>;
-  loginWithOAuth: () => void;
+  loginWithOAuth: (provider?: "github" | "google") => void;
   logout: () => void;
 }
 
@@ -87,9 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const loginWithOAuth = useCallback(() => {
+  const loginWithOAuth = useCallback((provider: "github" | "google" = "github") => {
     const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8787";
-    window.location.href = `${apiUrl}/auth/oauth/login`;
+    window.location.href = `${apiUrl}/auth/oauth/login?provider=${provider}`;
   }, []);
 
   const logout = useCallback(() => {

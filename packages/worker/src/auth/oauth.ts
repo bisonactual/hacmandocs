@@ -36,8 +36,39 @@ function getProviderConfig(provider: string): OAuthProviderConfig {
           name: (data.name as string) ?? (data.login as string) ?? "",
         }),
       };
+    case "google":
+      return {
+        authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenUrl: "https://oauth2.googleapis.com/token",
+        userInfoUrl: "https://www.googleapis.com/oauth2/v3/userinfo",
+        scopes: ["openid", "email", "profile"],
+        extractProfile: (data) => ({
+          externalId: String(data.sub),
+          email: (data.email as string) ?? "",
+          name: (data.name as string) ?? "",
+        }),
+      };
     default:
       throw new Error(`Unsupported OAuth provider: ${provider}`);
+  }
+}
+
+/** Return the client ID and secret for the given provider. */
+function getProviderCredentials(env: Env["Bindings"], provider: string) {
+  switch (provider) {
+    case "google":
+      return {
+        clientId: env.GOOGLE_CLIENT_ID,
+        clientSecret: env.GOOGLE_CLIENT_SECRET,
+        redirectUri: env.GOOGLE_REDIRECT_URI,
+      };
+    case "github":
+    default:
+      return {
+        clientId: env.OAUTH_CLIENT_ID,
+        clientSecret: env.OAUTH_CLIENT_SECRET,
+        redirectUri: env.OAUTH_REDIRECT_URI,
+      };
   }
 }
 
@@ -47,15 +78,22 @@ function getProviderConfig(provider: string): OAuthProviderConfig {
  * GET /login — redirect the user to the OAuth provider's authorization page.
  */
 oauth.get("/login", (c) => {
-  const provider = c.env.OAUTH_PROVIDER ?? "github";
+  const provider = c.req.query("provider") ?? c.env.OAUTH_PROVIDER ?? "github";
   const config = getProviderConfig(provider);
+  const creds = getProviderCredentials(c.env, provider);
 
   const params = new URLSearchParams({
-    client_id: c.env.OAUTH_CLIENT_ID,
-    redirect_uri: c.env.OAUTH_REDIRECT_URI,
+    client_id: creds.clientId,
+    redirect_uri: creds.redirectUri,
     scope: config.scopes.join(" "),
     response_type: "code",
+    state: provider,
   });
+
+  // Google requires access_type for refresh tokens (optional) and needs prompt param
+  if (provider === "google") {
+    params.set("access_type", "online");
+  }
 
   return c.redirect(`${config.authorizeUrl}?${params.toString()}`);
 });
@@ -70,22 +108,30 @@ oauth.get("/callback", async (c) => {
     return c.json({ error: "Missing authorization code" }, 400);
   }
 
-  const provider = c.env.OAUTH_PROVIDER ?? "github";
+  // Recover provider from the state param we set during /login
+  const provider = c.req.query("state") ?? c.env.OAUTH_PROVIDER ?? "github";
   const config = getProviderConfig(provider);
+  const creds = getProviderCredentials(c.env, provider);
 
   // 1. Exchange code for access token
+  const tokenBody: Record<string, string> = {
+    client_id: creds.clientId,
+    client_secret: creds.clientSecret,
+    code,
+    redirect_uri: creds.redirectUri,
+  };
+  // Google requires grant_type
+  if (provider === "google") {
+    tokenBody.grant_type = "authorization_code";
+  }
+
   const tokenRes = await fetch(config.tokenUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify({
-      client_id: c.env.OAUTH_CLIENT_ID,
-      client_secret: c.env.OAUTH_CLIENT_SECRET,
-      code,
-      redirect_uri: c.env.OAUTH_REDIRECT_URI,
-    }),
+    body: JSON.stringify(tokenBody),
   });
 
   if (!tokenRes.ok) {

@@ -257,6 +257,7 @@ describe('Property 9: Member profile available vs completed partitioning', () =>
   const toolRecordArb: fc.Arbitrary<ToolRecord> = fc.record({
     id: fc.uuid(),
     name: nonEmptyStringArb,
+    imageUrl: fc.oneof(fc.constant(null), fc.webUrl()),
     quizId: fc.oneof(fc.uuid(), fc.constant(null)),
     preInductionQuizId: fc.oneof(fc.uuid(), fc.constant(null)),
     refresherQuizId: fc.oneof(fc.uuid(), fc.constant(null)),
