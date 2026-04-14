@@ -32,6 +32,8 @@ jobs:
 
       - name: Build web
         run: pnpm --filter @hacmandocs/web build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       - name: Add SPA fallback for GitHub Pages
         run: cp packages/web/dist/index.html packages/web/dist/404.html
