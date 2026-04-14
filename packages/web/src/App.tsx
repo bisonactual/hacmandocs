@@ -21,6 +21,7 @@ import ChecklistPage from "./pages/inductions/ChecklistPage";
 import ToolsPage from "./pages/admin/ToolsPage";
 import QuizzesPage from "./pages/admin/QuizzesPage";
 import AreasPage from "./pages/admin/AreasPage";
+import SetUsernamePage from "./pages/SetUsernamePage";
 import { useAuth } from "./hooks/useAuth";
 
 function HomePage() {
@@ -125,6 +126,13 @@ function HomePage() {
 }
 
 export default function App() {
+  const { user } = useAuth();
+
+  // If logged in but no username set, show the username prompt
+  if (user && !user.username) {
+    return <SetUsernamePage onComplete={() => window.location.reload()} />;
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
