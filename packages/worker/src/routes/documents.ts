@@ -156,48 +156,62 @@ documentsApp.get("/debug-visibility", async (c) => {
   const db = drizzle(c.env.DB);
   const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
-  const rows = await db
-    .select({ id: documents.id, title: documents.title, categoryId: documents.categoryId })
-    .from(documents);
+  const debug: Record<string, unknown> = {
+    session: session ? { permissionLevel: session.permissionLevel, groupLevel: session.groupLevel } : null,
+  };
 
-  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
-
-  let userGroupIds: string[] = [];
-  if (session) {
-    const memberships = await db
-      .select({ groupId: visibilityGroupMembers.groupId })
-      .from(visibilityGroupMembers)
-      .where(eq(visibilityGroupMembers.userId, session.userId));
-    userGroupIds = memberships.map((m) => m.groupId);
+  try {
+    const rows = await db
+      .select({ id: documents.id })
+      .from(documents);
+    debug.totalDocs = rows.length;
+  } catch (e) {
+    debug.docsError = String(e);
   }
 
-  const docIds = rows.map((r) => r.id);
-  const docVisRows = docIds.length > 0
-    ? await db
-        .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-        .from(documentVisibility)
-        .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id))
-        .where(inArray(documentVisibility.documentId, docIds))
-    : [];
+  try {
+    const dvRows = await db
+      .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId })
+      .from(documentVisibility);
+    debug.docVisCount = dvRows.length;
+    debug.docVisRows = dvRows;
+  } catch (e) {
+    debug.docVisError = String(e);
+  }
 
-  const catIds = [...new Set(rows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
-  const catVisRows = catIds.length > 0
-    ? await db
-        .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-        .from(categoryVisibility)
-        .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
-        .where(inArray(categoryVisibility.categoryId, catIds))
-    : [];
+  try {
+    const cvRows = await db
+      .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId })
+      .from(categoryVisibility);
+    debug.catVisCount = cvRows.length;
+    debug.catVisRows = cvRows;
+  } catch (e) {
+    debug.catVisError = String(e);
+  }
 
-  return c.json({
-    totalDocs: rows.length,
-    session: session ? { permissionLevel: session.permissionLevel, groupLevel: session.groupLevel, userId: session.userId } : null,
-    userLevelRank,
-    userGroupIds,
-    docVisRows,
-    catVisRows,
-    totalCategories: catIds.length,
-  });
+  try {
+    const dvJoin = await db
+      .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+      .from(documentVisibility)
+      .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id));
+    debug.docVisJoinCount = dvJoin.length;
+    debug.docVisJoinRows = dvJoin;
+  } catch (e) {
+    debug.docVisJoinError = String(e);
+  }
+
+  try {
+    const cvJoin = await db
+      .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+      .from(categoryVisibility)
+      .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id));
+    debug.catVisJoinCount = cvJoin.length;
+    debug.catVisJoinRows = cvJoin;
+  } catch (e) {
+    debug.catVisJoinError = String(e);
+  }
+
+  return c.json(debug);
 });
 
 /**
