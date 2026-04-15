@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc, inArray as _inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
 import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
-import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
+import { documents, documentVersions, documentVisibility as _documentVisibility, categoryVisibility as _categoryVisibility, visibilityGroups as _visibilityGroups, visibilityGroupMembers as _visibilityGroupMembers } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 
 /**
@@ -23,7 +23,8 @@ export function extractPlainText(node: DocumentNode): string {
 
 const documentsApp = new Hono<Env>();
 
-const GROUP_LEVEL_RANK: Record<string, number> = {
+// Preserved for when visibility filtering is re-enabled
+const _GROUP_LEVEL_RANK: Record<string, number> = {
   Non_Member: 0,
   Member: 1,
   Team_Leader: 2,
@@ -38,7 +39,7 @@ const GROUP_LEVEL_RANK: Record<string, number> = {
  */
 documentsApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const session = c.get("session") as import("../auth/session").SessionData | undefined;
+  const _session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
