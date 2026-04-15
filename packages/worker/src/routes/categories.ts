@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireAdminOrManager } from "../middleware/rbac";
-import { categories, documents, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
+import { categories, documents, categoryVisibility, visibilityGroups, visibilityGroupMembers as _visibilityGroupMembers } from "../db/schema";
 
-const GROUP_LEVEL_RANK: Record<string, number> = {
+const _GROUP_LEVEL_RANK: Record<string, number> = {
   Non_Member: 0,
   Member: 1,
   Team_Leader: 2,
@@ -23,7 +23,7 @@ const categoriesApp = new Hono<Env>();
  */
 categoriesApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const session = c.get("session") as import("../auth/session").SessionData | undefined;
+  const _session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
