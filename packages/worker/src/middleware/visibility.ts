@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { documentVisibility, visibilityGroupMembers, visibilityGroups } from "../db/schema";
+import { documentVisibility, visibilityGroupMembers, visibilityGroups, categoryVisibility } from "../db/schema";
 import type { PermissionLevel } from "@hacmandocs/shared";
 
 /**
@@ -76,4 +76,47 @@ export async function checkDocumentVisibility(
   const requiredGroupIds = groupAssignments.map((g) => g.groupId);
 
   return requiredGroupIds.some((gid) => userGroupIds.has(gid));
+}
+
+/**
+ * Check whether a user can access a category based on visibility group
+ * assignments. Same logic as document visibility.
+ */
+export async function checkCategoryVisibility(
+  db: D1Database,
+  userId: string,
+  categoryId: string,
+  permissionLevel: PermissionLevel,
+  groupLevel?: string,
+): Promise<boolean> {
+  if (permissionLevel === "Admin") {
+    return true;
+  }
+
+  const orm = drizzle(db);
+
+  const groupAssignments = await orm
+    .select({ groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+    .from(categoryVisibility)
+    .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
+    .where(eq(categoryVisibility.categoryId, categoryId));
+
+  if (groupAssignments.length === 0) {
+    return true;
+  }
+
+  if (groupLevel) {
+    const userRank = GROUP_LEVEL_RANK[groupLevel] ?? 0;
+    if (groupAssignments.some((g) => userRank >= (GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0))) {
+      return true;
+    }
+  }
+
+  const userMemberships = await orm
+    .select({ groupId: visibilityGroupMembers.groupId })
+    .from(visibilityGroupMembers)
+    .where(eq(visibilityGroupMembers.userId, userId));
+
+  const userGroupIds = new Set(userMemberships.map((m) => m.groupId));
+  return groupAssignments.some((g) => userGroupIds.has(g.groupId));
 }

@@ -1,9 +1,10 @@
 import { Hono } from "hono";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
-import { documents, documentVersions, documentVisibility } from "../db/schema";
+import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
+import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 
 /**
@@ -22,14 +23,22 @@ export function extractPlainText(node: DocumentNode): string {
 
 const documentsApp = new Hono<Env>();
 
+const GROUP_LEVEL_RANK: Record<string, number> = {
+  Non_Member: 0,
+  Member: 1,
+  Team_Leader: 2,
+  Manager: 3,
+  Board_Member: 4,
+};
+
 /**
  * GET / — List all documents.
  * Returns metadata only (no content_json) for performance.
- * Includes a `hasVisibilityGroups` flag so the frontend can identify restricted docs.
- * Visibility-restricted docs in hidden categories are filtered for non-privileged users.
+ * Filters out docs the user can't access via document or category visibility.
  */
 documentsApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
+  const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
@@ -43,12 +52,82 @@ documentsApp.get("/", async (c) => {
     })
     .from(documents);
 
-  return c.json(rows);
+  // Admins see everything
+  if (session?.permissionLevel === "Admin") {
+    return c.json(rows);
+  }
+
+  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
+
+  let userGroupIds = new Set<string>();
+  if (session) {
+    const memberships = await db
+      .select({ groupId: visibilityGroupMembers.groupId })
+      .from(visibilityGroupMembers)
+      .where(eq(visibilityGroupMembers.userId, session.userId));
+    userGroupIds = new Set(memberships.map((m) => m.groupId));
+  }
+
+  // Get doc-level visibility assignments
+  const docIds = rows.map((r) => r.id);
+  const docVisRows = docIds.length > 0
+    ? await db
+        .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+        .from(documentVisibility)
+        .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id))
+        .where(inArray(documentVisibility.documentId, docIds))
+    : [];
+
+  const docGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+  for (const row of docVisRows) {
+    if (!docGroupMap.has(row.documentId)) docGroupMap.set(row.documentId, []);
+    docGroupMap.get(row.documentId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+  }
+
+  // Get category-level visibility assignments
+  const catIds = [...new Set(rows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
+  const catVisRows = catIds.length > 0
+    ? await db
+        .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+        .from(categoryVisibility)
+        .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
+        .where(inArray(categoryVisibility.categoryId, catIds))
+    : [];
+
+  const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+  for (const row of catVisRows) {
+    if (!catGroupMap.has(row.categoryId)) catGroupMap.set(row.categoryId, []);
+    catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+  }
+
+  const canAccess = (groups: { groupId: string; groupLevel: string | null }[]) => {
+    for (const g of groups) {
+      if (userLevelRank >= (GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0)) return true;
+    }
+    for (const g of groups) {
+      if (userGroupIds.has(g.groupId)) return true;
+    }
+    return false;
+  };
+
+  const filtered = rows.filter((r) => {
+    // Check doc-level visibility
+    const docGroups = docGroupMap.get(r.id);
+    if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) return false;
+    // Check category-level visibility
+    if (r.categoryId) {
+      const catGroups = catGroupMap.get(r.categoryId);
+      if (catGroups && catGroups.length > 0 && !canAccess(catGroups)) return false;
+    }
+    return true;
+  });
+
+  return c.json(filtered);
 });
 
 /**
- * GET /:id — Get a single document by ID (public).
- * Returns the full document including content_json.
+ * GET /:id — Get a single document by ID.
+ * Checks document-level and category-level visibility before returning.
  */
 documentsApp.get("/:id", async (c) => {
   const id = c.req.param("id");
@@ -66,6 +145,26 @@ documentsApp.get("/:id", async (c) => {
 
   if (!doc) {
     return c.json({ error: "Document not found" }, 404);
+  }
+
+  // Check visibility — unauthenticated users only see unrestricted docs
+  const session = c.get("session") as import("../auth/session").SessionData | undefined;
+  const permissionLevel = session?.permissionLevel ?? "Viewer";
+  const groupLevel = session?.groupLevel;
+  const userId = session?.userId ?? "";
+
+  // Check document-level visibility
+  const docVisible = await checkDocumentVisibility(c.env.DB, userId, id, permissionLevel, groupLevel);
+  if (!docVisible) {
+    return c.json({ error: "Document not found" }, 404);
+  }
+
+  // Check category-level visibility
+  if (doc.categoryId) {
+    const catVisible = await checkCategoryVisibility(c.env.DB, userId, doc.categoryId, permissionLevel, groupLevel);
+    if (!catVisible) {
+      return c.json({ error: "Document not found" }, 404);
+    }
   }
 
   return c.json(doc);
