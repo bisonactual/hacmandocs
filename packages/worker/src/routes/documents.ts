@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, asc, inArray } from "drizzle-orm";
+import { eq, asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
@@ -68,15 +68,11 @@ documentsApp.get("/", async (c) => {
     userGroupIds = new Set(memberships.map((m) => m.groupId));
   }
 
-  // Get doc-level visibility assignments
-  const docIds = rows.map((r) => r.id);
-  const docVisRows = docIds.length > 0
-    ? await db
-        .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-        .from(documentVisibility)
-        .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id))
-        .where(inArray(documentVisibility.documentId, docIds))
-    : [];
+  // Get ALL doc-level visibility assignments (no WHERE — avoids D1 parameter limit)
+  const docVisRows = await db
+    .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+    .from(documentVisibility)
+    .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id));
 
   const docGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
   for (const row of docVisRows) {
@@ -84,15 +80,11 @@ documentsApp.get("/", async (c) => {
     docGroupMap.get(row.documentId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
   }
 
-  // Get category-level visibility assignments
-  const catIds = [...new Set(rows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
-  const catVisRows = catIds.length > 0
-    ? await db
-        .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-        .from(categoryVisibility)
-        .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
-        .where(inArray(categoryVisibility.categoryId, catIds))
-    : [];
+  // Get ALL category-level visibility assignments
+  const catVisRows = await db
+    .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+    .from(categoryVisibility)
+    .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id));
 
   const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
   for (const row of catVisRows) {
@@ -111,10 +103,8 @@ documentsApp.get("/", async (c) => {
   };
 
   const filtered = rows.filter((r) => {
-    // Check doc-level visibility
     const docGroups = docGroupMap.get(r.id);
     if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) return false;
-    // Check category-level visibility
     if (r.categoryId) {
       const catGroups = catGroupMap.get(r.categoryId);
       if (catGroups && catGroups.length > 0 && !canAccess(catGroups)) return false;
