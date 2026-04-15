@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq, asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole, requireAdminOrManager } from "../middleware/rbac";
+import { requireRole } from "../middleware/rbac";
 import { documents, documentVersions, documentVisibility } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 

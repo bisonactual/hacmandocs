@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { documentVisibility, visibilityGroupMembers, visibilityGroups } from "../db/schema";
-import type { PermissionLevel, GroupLevel } from "@hacmandocs/shared";
+import type { PermissionLevel } from "@hacmandocs/shared";
 
 /**
  * Rank for each group level. Higher = more privileges.
