@@ -52,17 +52,12 @@ documentsApp.get("/", async (c) => {
     })
     .from(documents);
 
-  console.log("[DEBUG] GET /api/documents — total rows:", rows.length);
-  console.log("[DEBUG] session:", session ? { permissionLevel: session.permissionLevel, groupLevel: session.groupLevel, userId: session.userId } : "none");
-
   // Admins see everything
   if (session?.permissionLevel === "Admin") {
-    console.log("[DEBUG] Admin bypass — returning all rows");
     return c.json(rows);
   }
 
   const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
-  console.log("[DEBUG] userLevelRank:", userLevelRank);
 
   let userGroupIds = new Set<string>();
   if (session) {
@@ -71,7 +66,6 @@ documentsApp.get("/", async (c) => {
       .from(visibilityGroupMembers)
       .where(eq(visibilityGroupMembers.userId, session.userId));
     userGroupIds = new Set(memberships.map((m) => m.groupId));
-    console.log("[DEBUG] userGroupIds:", [...userGroupIds]);
   }
 
   // Get doc-level visibility assignments
@@ -84,15 +78,11 @@ documentsApp.get("/", async (c) => {
         .where(inArray(documentVisibility.documentId, docIds))
     : [];
 
-  console.log("[DEBUG] docVisRows:", docVisRows.length, JSON.stringify(docVisRows));
-
   const docGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
   for (const row of docVisRows) {
     if (!docGroupMap.has(row.documentId)) docGroupMap.set(row.documentId, []);
     docGroupMap.get(row.documentId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
   }
-
-  console.log("[DEBUG] docs with visibility groups:", docGroupMap.size);
 
   // Get category-level visibility assignments
   const catIds = [...new Set(rows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
@@ -104,15 +94,11 @@ documentsApp.get("/", async (c) => {
         .where(inArray(categoryVisibility.categoryId, catIds))
     : [];
 
-  console.log("[DEBUG] catVisRows:", catVisRows.length, JSON.stringify(catVisRows));
-
   const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
   for (const row of catVisRows) {
     if (!catGroupMap.has(row.categoryId)) catGroupMap.set(row.categoryId, []);
     catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
   }
-
-  console.log("[DEBUG] categories with visibility groups:", catGroupMap.size);
 
   const canAccess = (groups: { groupId: string; groupLevel: string | null }[]) => {
     for (const g of groups) {
@@ -124,94 +110,19 @@ documentsApp.get("/", async (c) => {
     return false;
   };
 
-  let blockedByDoc = 0;
-  let blockedByCat = 0;
-
   const filtered = rows.filter((r) => {
+    // Check doc-level visibility
     const docGroups = docGroupMap.get(r.id);
-    if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) {
-      blockedByDoc++;
-      return false;
-    }
+    if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) return false;
+    // Check category-level visibility
     if (r.categoryId) {
       const catGroups = catGroupMap.get(r.categoryId);
-      if (catGroups && catGroups.length > 0 && !canAccess(catGroups)) {
-        blockedByCat++;
-        return false;
-      }
+      if (catGroups && catGroups.length > 0 && !canAccess(catGroups)) return false;
     }
     return true;
   });
 
-  console.log("[DEBUG] filtered:", filtered.length, "blockedByDoc:", blockedByDoc, "blockedByCat:", blockedByCat);
-
   return c.json(filtered);
-});
-
-/**
- * TEMPORARY DEBUG ENDPOINT — remove after diagnosing visibility bug.
- * Returns filtering diagnostics as JSON so we can see what's happening.
- */
-documentsApp.get("/debug-visibility", async (c) => {
-  const db = drizzle(c.env.DB);
-  const session = c.get("session") as import("../auth/session").SessionData | undefined;
-
-  const debug: Record<string, unknown> = {
-    session: session ? { permissionLevel: session.permissionLevel, groupLevel: session.groupLevel } : null,
-  };
-
-  try {
-    const rows = await db
-      .select({ id: documents.id })
-      .from(documents);
-    debug.totalDocs = rows.length;
-  } catch (e) {
-    debug.docsError = String(e);
-  }
-
-  try {
-    const dvRows = await db
-      .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId })
-      .from(documentVisibility);
-    debug.docVisCount = dvRows.length;
-    debug.docVisRows = dvRows;
-  } catch (e) {
-    debug.docVisError = String(e);
-  }
-
-  try {
-    const cvRows = await db
-      .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId })
-      .from(categoryVisibility);
-    debug.catVisCount = cvRows.length;
-    debug.catVisRows = cvRows;
-  } catch (e) {
-    debug.catVisError = String(e);
-  }
-
-  try {
-    const dvJoin = await db
-      .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-      .from(documentVisibility)
-      .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id));
-    debug.docVisJoinCount = dvJoin.length;
-    debug.docVisJoinRows = dvJoin;
-  } catch (e) {
-    debug.docVisJoinError = String(e);
-  }
-
-  try {
-    const cvJoin = await db
-      .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-      .from(categoryVisibility)
-      .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id));
-    debug.catVisJoinCount = cvJoin.length;
-    debug.catVisJoinRows = cvJoin;
-  } catch (e) {
-    debug.catVisJoinError = String(e);
-  }
-
-  return c.json(debug);
 });
 
 /**
