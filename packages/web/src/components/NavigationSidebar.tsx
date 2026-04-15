@@ -186,9 +186,9 @@ export default function NavigationSidebar() {
     ])
       .then(([cats, docs]) => {
         setCategories(cats);
-        // Hide unpublished docs from non-admin users in the sidebar
-        const isAdmin = user?.permissionLevel === "Admin";
-        setDocuments(isAdmin ? docs : docs.filter((d) => d.isPublished));
+        // The API already filters by visibility and publish status —
+        // no need to re-filter here.
+        setDocuments(docs);
       })
       .finally(() => setLoading(false));
   }, []);

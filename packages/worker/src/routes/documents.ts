@@ -52,10 +52,13 @@ documentsApp.get("/", async (c) => {
     })
     .from(documents);
 
-  // Admins see everything
+  // Admins see everything (including unpublished)
   if (session?.permissionLevel === "Admin") {
     return c.json(rows);
   }
+
+  // Non-admins only see published documents
+  const publishedRows = rows.filter((r) => r.isPublished === 1);
 
   const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
 
@@ -69,7 +72,7 @@ documentsApp.get("/", async (c) => {
   }
 
   // Get doc-level visibility assignments
-  const docIds = rows.map((r) => r.id);
+  const docIds = publishedRows.map((r) => r.id);
   const docVisRows = docIds.length > 0
     ? await db
         .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
@@ -85,7 +88,7 @@ documentsApp.get("/", async (c) => {
   }
 
   // Get category-level visibility assignments
-  const catIds = [...new Set(rows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
+  const catIds = [...new Set(publishedRows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
   const catVisRows = catIds.length > 0
     ? await db
         .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
@@ -110,7 +113,7 @@ documentsApp.get("/", async (c) => {
     return false;
   };
 
-  const filtered = rows.filter((r) => {
+  const filtered = publishedRows.filter((r) => {
     // Check doc-level visibility
     const docGroups = docGroupMap.get(r.id);
     if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) return false;
@@ -152,6 +155,11 @@ documentsApp.get("/:id", async (c) => {
   const permissionLevel = session?.permissionLevel ?? "Viewer";
   const groupLevel = session?.groupLevel;
   const userId = session?.userId ?? "";
+
+  // Non-admins cannot access unpublished documents
+  if (permissionLevel !== "Admin" && doc.isPublished === 0) {
+    return c.json({ error: "Document not found" }, 404);
+  }
 
   // Check document-level visibility
   const docVisible = await checkDocumentVisibility(c.env.DB, userId, id, permissionLevel, groupLevel);
