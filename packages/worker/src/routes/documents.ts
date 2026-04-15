@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { eq, asc, inArray as _inArray } from "drizzle-orm";
+import { eq, asc, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
 import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
-import { documents, documentVersions, documentVisibility, categoryVisibility as _categoryVisibility, visibilityGroups as _visibilityGroups, visibilityGroupMembers as _visibilityGroupMembers } from "../db/schema";
+import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 
 /**
@@ -23,8 +23,7 @@ export function extractPlainText(node: DocumentNode): string {
 
 const documentsApp = new Hono<Env>();
 
-// Preserved for when visibility filtering is re-enabled
-const _GROUP_LEVEL_RANK: Record<string, number> = {
+const GROUP_LEVEL_RANK: Record<string, number> = {
   Non_Member: 0,
   Member: 1,
   Team_Leader: 2,
@@ -39,7 +38,7 @@ const _GROUP_LEVEL_RANK: Record<string, number> = {
  */
 documentsApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const _session = c.get("session") as import("../auth/session").SessionData | undefined;
+  const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
@@ -53,10 +52,100 @@ documentsApp.get("/", async (c) => {
     })
     .from(documents);
 
-  // Return all documents — visibility filtering is handled per-document
-  // on the GET /:id endpoint. The list endpoint is public and shows all
-  // non-sensitive metadata so the sidebar can render the full doc tree.
-  return c.json(rows);
+  console.log("[DEBUG] GET /api/documents — total rows:", rows.length);
+  console.log("[DEBUG] session:", session ? { permissionLevel: session.permissionLevel, groupLevel: session.groupLevel, userId: session.userId } : "none");
+
+  // Admins see everything
+  if (session?.permissionLevel === "Admin") {
+    console.log("[DEBUG] Admin bypass — returning all rows");
+    return c.json(rows);
+  }
+
+  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
+  console.log("[DEBUG] userLevelRank:", userLevelRank);
+
+  let userGroupIds = new Set<string>();
+  if (session) {
+    const memberships = await db
+      .select({ groupId: visibilityGroupMembers.groupId })
+      .from(visibilityGroupMembers)
+      .where(eq(visibilityGroupMembers.userId, session.userId));
+    userGroupIds = new Set(memberships.map((m) => m.groupId));
+    console.log("[DEBUG] userGroupIds:", [...userGroupIds]);
+  }
+
+  // Get doc-level visibility assignments
+  const docIds = rows.map((r) => r.id);
+  const docVisRows = docIds.length > 0
+    ? await db
+        .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+        .from(documentVisibility)
+        .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id))
+        .where(inArray(documentVisibility.documentId, docIds))
+    : [];
+
+  console.log("[DEBUG] docVisRows:", docVisRows.length, JSON.stringify(docVisRows));
+
+  const docGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+  for (const row of docVisRows) {
+    if (!docGroupMap.has(row.documentId)) docGroupMap.set(row.documentId, []);
+    docGroupMap.get(row.documentId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+  }
+
+  console.log("[DEBUG] docs with visibility groups:", docGroupMap.size);
+
+  // Get category-level visibility assignments
+  const catIds = [...new Set(rows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
+  const catVisRows = catIds.length > 0
+    ? await db
+        .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
+        .from(categoryVisibility)
+        .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
+        .where(inArray(categoryVisibility.categoryId, catIds))
+    : [];
+
+  console.log("[DEBUG] catVisRows:", catVisRows.length, JSON.stringify(catVisRows));
+
+  const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+  for (const row of catVisRows) {
+    if (!catGroupMap.has(row.categoryId)) catGroupMap.set(row.categoryId, []);
+    catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+  }
+
+  console.log("[DEBUG] categories with visibility groups:", catGroupMap.size);
+
+  const canAccess = (groups: { groupId: string; groupLevel: string | null }[]) => {
+    for (const g of groups) {
+      if (userLevelRank >= (GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0)) return true;
+    }
+    for (const g of groups) {
+      if (userGroupIds.has(g.groupId)) return true;
+    }
+    return false;
+  };
+
+  let blockedByDoc = 0;
+  let blockedByCat = 0;
+
+  const filtered = rows.filter((r) => {
+    const docGroups = docGroupMap.get(r.id);
+    if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) {
+      blockedByDoc++;
+      return false;
+    }
+    if (r.categoryId) {
+      const catGroups = catGroupMap.get(r.categoryId);
+      if (catGroups && catGroups.length > 0 && !canAccess(catGroups)) {
+        blockedByCat++;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  console.log("[DEBUG] filtered:", filtered.length, "blockedByDoc:", blockedByDoc, "blockedByCat:", blockedByCat);
+
+  return c.json(filtered);
 });
 
 /**

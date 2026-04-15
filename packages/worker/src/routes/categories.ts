@@ -3,10 +3,9 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireAdminOrManager } from "../middleware/rbac";
-import { categories, documents, categoryVisibility, visibilityGroups, visibilityGroupMembers as _visibilityGroupMembers } from "../db/schema";
+import { categories, documents, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
 
-// Preserved for when visibility filtering is re-enabled
-const _GROUP_LEVEL_RANK: Record<string, number> = {
+const GROUP_LEVEL_RANK: Record<string, number> = {
   Non_Member: 0,
   Member: 1,
   Team_Leader: 2,
@@ -24,7 +23,7 @@ const categoriesApp = new Hono<Env>();
  */
 categoriesApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const _session = c.get("session") as import("../auth/session").SessionData | undefined;
+  const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
@@ -48,6 +47,17 @@ categoriesApp.get("/", async (c) => {
 
   // Build map: categoryId → group assignments
   const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+  for (const row of catVisRows) {
+    if (!catGroupMap.has(row.categoryId)) {
+      catGroupMap.set(row.categoryId, []);
+    }
+    catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+  }
+
+  // Return all categories — the list is public so the sidebar can build
+  // the full navigation tree. Per-category access control is enforced on
+  // the document detail endpoint via checkCategoryVisibility.
+  return c.json(rows.map((r) => ({ ...r, isPrivate: catGroupMap.has(r.id) })));
   for (const row of catVisRows) {
     if (!catGroupMap.has(row.categoryId)) {
       catGroupMap.set(row.categoryId, []);
