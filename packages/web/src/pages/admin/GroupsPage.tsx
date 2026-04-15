@@ -37,7 +37,6 @@ export default function GroupsPage() {
   // Create form
   const [newName, setNewName] = useState("");
   const [newLevel, setNewLevel] = useState<GroupLevel>("Member");
-  const [newMember, setNewMember] = useState("");
 
   const load = () => {
     Promise.all([
@@ -57,17 +56,14 @@ export default function GroupsPage() {
 
   const createGroup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMember) return;
     await apiFetch("/api/groups", {
       method: "POST",
       body: JSON.stringify({
         name: newName,
         groupLevel: newLevel,
-        memberIds: [newMember],
       }),
     });
     setNewName("");
-    setNewMember("");
     load();
   };
 
@@ -133,19 +129,6 @@ export default function GroupsPage() {
         >
           {groupLevels.map((l) => (
             <option key={l} value={l}>{l}</option>
-          ))}
-        </select>
-        <label htmlFor="initial-member" className="sr-only">Initial member</label>
-        <select
-          id="initial-member"
-          value={newMember}
-          onChange={(e) => setNewMember(e.target.value)}
-          required
-          className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1.5 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
-        >
-          <option value="">Select member…</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>{u.name}</option>
           ))}
         </select>
         <button

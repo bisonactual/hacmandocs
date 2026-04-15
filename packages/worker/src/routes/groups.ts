@@ -2,11 +2,13 @@ import { Hono } from "hono";
 import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
+import { requireRole, requireAdminOrManager } from "../middleware/rbac";
 import {
   visibilityGroups,
   visibilityGroupMembers,
   documentVisibility,
+  users,
+  documents,
 } from "../db/schema";
 import type { GroupLevel } from "@hacmandocs/shared";
 
@@ -21,9 +23,9 @@ const VALID_GROUP_LEVELS: GroupLevel[] = [
 const groupsApp = new Hono<Env>();
 
 /**
- * GET / — List all visibility groups (Admin only).
+ * GET / — List all visibility groups (Admin or Manager).
  */
-groupsApp.get("/", requireRole("Admin"), async (c) => {
+groupsApp.get("/", requireAdminOrManager(), async (c) => {
   const db = drizzle(c.env.DB);
 
   const groups = await db.select().from(visibilityGroups);
@@ -31,20 +33,30 @@ groupsApp.get("/", requireRole("Admin"), async (c) => {
   // For each group, fetch members and document assignments
   const result = await Promise.all(
     groups.map(async (group) => {
-      const members = await db
-        .select()
+      const memberRows = await db
+        .select({
+          userId: visibilityGroupMembers.userId,
+          addedAt: visibilityGroupMembers.addedAt,
+          name: users.name,
+        })
         .from(visibilityGroupMembers)
+        .leftJoin(users, eq(visibilityGroupMembers.userId, users.id))
         .where(eq(visibilityGroupMembers.groupId, group.id));
 
-      const docs = await db
-        .select()
+      const docRows = await db
+        .select({
+          documentId: documentVisibility.documentId,
+          assignedAt: documentVisibility.assignedAt,
+          title: documents.title,
+        })
         .from(documentVisibility)
+        .leftJoin(documents, eq(documentVisibility.documentId, documents.id))
         .where(eq(documentVisibility.groupId, group.id));
 
       return {
         ...group,
-        members: members.map((m) => ({ userId: m.userId, addedAt: m.addedAt })),
-        documents: docs.map((d) => ({ documentId: d.documentId, assignedAt: d.assignedAt })),
+        members: memberRows.map((m) => ({ userId: m.userId, name: m.name ?? "Unknown", addedAt: m.addedAt })),
+        documents: docRows.map((d) => ({ documentId: d.documentId, title: d.title ?? "Untitled", assignedAt: d.assignedAt })),
       };
     }),
   );
@@ -79,10 +91,6 @@ groupsApp.post("/", requireRole("Admin"), async (c) => {
     );
   }
 
-  if (!body.memberIds || body.memberIds.length === 0) {
-    return c.json({ error: "At least one member is required." }, 400);
-  }
-
   const db = drizzle(c.env.DB);
   const id = crypto.randomUUID();
   const now = Math.floor(Date.now() / 1000);
@@ -95,14 +103,16 @@ groupsApp.post("/", requireRole("Admin"), async (c) => {
     updatedAt: now,
   });
 
-  // Add members
-  const memberValues = body.memberIds.map((userId) => ({
-    groupId: id,
-    userId,
-    addedAt: now,
-  }));
+  // Add members if provided
+  if (body.memberIds && body.memberIds.length > 0) {
+    const memberValues = body.memberIds.map((userId) => ({
+      groupId: id,
+      userId,
+      addedAt: now,
+    }));
 
-  await db.insert(visibilityGroupMembers).values(memberValues);
+    await db.insert(visibilityGroupMembers).values(memberValues);
+  }
 
   const [created] = await db
     .select()

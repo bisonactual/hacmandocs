@@ -12,6 +12,12 @@ interface CategoryOption {
   parentId: string | null;
 }
 
+interface GroupOption {
+  id: string;
+  name: string;
+  groupLevel: string;
+}
+
 export default function CreateDocumentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -21,11 +27,18 @@ export default function CreateDocumentPage() {
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState(searchParams.get("categoryId") ?? "");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [visibilityGroups, setVisibilityGroups] = useState<GroupOption[]>([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const canSetVisibility = user && (user.permissionLevel === "Admin" || user.groupLevel === "Manager");
+
   useEffect(() => {
     apiFetch<CategoryOption[]>("/api/categories").then(setCategories).catch(() => {});
+    if (canSetVisibility) {
+      apiFetch<GroupOption[]>("/api/groups").then(setVisibilityGroups).catch(() => {});
+    }
   }, []);
 
   // Build indented category label
@@ -54,6 +67,7 @@ export default function CreateDocumentPage() {
           title: title.trim(),
           contentJson,
           categoryId: categoryId || null,
+          ...(canSetVisibility && selectedGroupIds.length > 0 ? { groupIds: selectedGroupIds } : {}),
         }),
       });
       editorRef.current.clearDraft();
@@ -109,6 +123,42 @@ export default function CreateDocumentPage() {
           </select>
         </div>
       </div>
+
+      {canSetVisibility && visibilityGroups.length > 0 && (
+        <div className="mb-4">
+          <label className="block text-xs text-hacman-muted mb-1">Visibility (optional)</label>
+          <div className="flex flex-wrap gap-2">
+            {visibilityGroups.map((g) => (
+              <label
+                key={g.id}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs cursor-pointer transition-colors ${
+                  selectedGroupIds.includes(g.id)
+                    ? "border-hacman-yellow bg-hacman-yellow/10 text-hacman-yellow"
+                    : "border-hacman-gray bg-hacman-black text-gray-400 hover:border-hacman-yellow/50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={selectedGroupIds.includes(g.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedGroupIds((prev) => [...prev, g.id]);
+                    } else {
+                      setSelectedGroupIds((prev) => prev.filter((id) => id !== g.id));
+                    }
+                  }}
+                />
+                {g.name}
+                <span className="text-hacman-muted">({g.groupLevel})</span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-hacman-muted">
+            Restrict this document to selected groups. Leave empty for public access.
+          </p>
+        </div>
+      )}
 
       <RichTextEditor
         ref={editorRef}

@@ -2,7 +2,18 @@ import { Hono } from "hono";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { documentVisibility, visibilityGroupMembers } from "../db/schema";
+import { documentVisibility, visibilityGroupMembers, visibilityGroups } from "../db/schema";
+
+/**
+ * Rank for each group level. Higher = more privileges.
+ */
+const GROUP_LEVEL_RANK: Record<string, number> = {
+  Non_Member: 0,
+  Member: 1,
+  Team_Leader: 2,
+  Manager: 3,
+  Board_Member: 4,
+};
 
 const searchApp = new Hono<Env>();
 
@@ -84,13 +95,15 @@ searchApp.get("/", async (c) => {
     return c.json({ results: [] });
   }
 
-  // Get all visibility assignments for matched documents
+  // Get all visibility assignments for matched documents (with group level)
   const visRows = await db
     .select({
       documentId: documentVisibility.documentId,
       groupId: documentVisibility.groupId,
+      groupLevel: visibilityGroups.groupLevel,
     })
     .from(documentVisibility)
+    .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id))
     .where(inArray(documentVisibility.documentId, docIds));
 
   // Get groups the user belongs to
@@ -102,26 +115,31 @@ searchApp.get("/", async (c) => {
     : [];
 
   const userGroupIds = new Set(userGroups.map((g) => g.groupId));
+  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
 
-  // Build a map: documentId → set of required group IDs
-  const docGroupMap = new Map<string, Set<string>>();
+  // Build a map: documentId → array of { groupId, groupLevel }
+  const docGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
   for (const row of visRows) {
     if (!docGroupMap.has(row.documentId)) {
-      docGroupMap.set(row.documentId, new Set());
+      docGroupMap.set(row.documentId, []);
     }
-    docGroupMap.get(row.documentId)!.add(row.groupId);
+    docGroupMap.get(row.documentId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
   }
 
-  // Filter: if document has groups, user must be in at least one
+  // Filter: if document has groups, user must match by level hierarchy or explicit membership
   results = results.filter((r) => {
     const requiredGroups = docGroupMap.get(r.id);
-    if (!requiredGroups || requiredGroups.size === 0) {
-      // No visibility groups → standard RBAC (already passed requireRole)
+    if (!requiredGroups || requiredGroups.length === 0) {
       return true;
     }
-    // User must belong to at least one assigned group
-    for (const gid of requiredGroups) {
-      if (userGroupIds.has(gid)) return true;
+    // Check group level hierarchy
+    for (const g of requiredGroups) {
+      const requiredRank = GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0;
+      if (userLevelRank >= requiredRank) return true;
+    }
+    // Check explicit membership
+    for (const g of requiredGroups) {
+      if (userGroupIds.has(g.groupId)) return true;
     }
     return false;
   });

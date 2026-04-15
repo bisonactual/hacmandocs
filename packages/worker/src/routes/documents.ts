@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { eq, asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
-import { documents, documentVersions } from "../db/schema";
+import { requireRole, requireAdminOrManager } from "../middleware/rbac";
+import { documents, documentVersions, documentVisibility } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 
 /**
@@ -75,7 +75,8 @@ documentsApp.get("/:id", async (c) => {
  * POST / — Create a new document (any authenticated user).
  * Editors+ get the document created directly (unpublished).
  * Viewers create the document as unpublished — it will need approval.
- * Accepts title, contentJson, categoryId (optional), isSensitive (optional, Admin only).
+ * Accepts title, contentJson, categoryId (optional), isSensitive (optional, Admin only),
+ * groupIds (optional, Admin/Manager only — assigns visibility groups on creation).
  * Syncs FTS5 index after insert.
  */
 documentsApp.post("/", requireRole("Viewer"), async (c) => {
@@ -85,6 +86,7 @@ documentsApp.post("/", requireRole("Viewer"), async (c) => {
     contentJson?: DocumentNode;
     categoryId?: string | null;
     isSensitive?: boolean;
+    groupIds?: string[];
   }>();
 
   if (!body.title || !body.title.trim()) {
@@ -124,6 +126,21 @@ documentsApp.post("/", requireRole("Viewer"), async (c) => {
   )
     .bind(id, body.title.trim(), contentText)
     .run();
+
+  // Assign visibility groups if provided (Admin/Manager only)
+  if (
+    body.groupIds &&
+    body.groupIds.length > 0 &&
+    (session.permissionLevel === "Admin" || session.groupLevel === "Manager")
+  ) {
+    for (const groupId of body.groupIds) {
+      await db.insert(documentVisibility).values({
+        documentId: id,
+        groupId,
+        assignedAt: now,
+      });
+    }
+  }
 
   // Return the created document
   const [created] = await db
