@@ -71,6 +71,13 @@
       "when": 1776600000000,
       "tag": "0009_add_group_level",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1776700000000,
+      "tag": "0010_add_category_visibility",
+      "breakpoints": true
     }
   ]
 }

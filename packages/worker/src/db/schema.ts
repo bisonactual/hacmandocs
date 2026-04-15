@@ -162,6 +162,22 @@ export const documentVisibility = sqliteTable(
   (table) => [primaryKey({ columns: [table.documentId, table.groupId] })]
 );
 
+// ── Category Visibility ──────────────────────────────────────────────
+
+export const categoryVisibility = sqliteTable(
+  "category_visibility",
+  {
+    categoryId: text("category_id")
+      .notNull()
+      .references(() => categories.id),
+    groupId: text("group_id")
+      .notNull()
+      .references(() => visibilityGroups.id),
+    assignedAt: integer("assigned_at").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.categoryId, table.groupId] })]
+);
+
 // ── Permission Audit Log ─────────────────────────────────────────────
 
 export const permissionAuditLog = sqliteTable("permission_audit_log", {

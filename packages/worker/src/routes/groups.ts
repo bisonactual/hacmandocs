@@ -7,8 +7,10 @@ import {
   visibilityGroups,
   visibilityGroupMembers,
   documentVisibility,
+  categoryVisibility,
   users,
   documents,
+  categories,
 } from "../db/schema";
 import type { GroupLevel } from "@hacmandocs/shared";
 
@@ -53,10 +55,21 @@ groupsApp.get("/", requireAdminOrManager(), async (c) => {
         .leftJoin(documents, eq(documentVisibility.documentId, documents.id))
         .where(eq(documentVisibility.groupId, group.id));
 
+      const catRows = await db
+        .select({
+          categoryId: categoryVisibility.categoryId,
+          assignedAt: categoryVisibility.assignedAt,
+          name: categories.name,
+        })
+        .from(categoryVisibility)
+        .leftJoin(categories, eq(categoryVisibility.categoryId, categories.id))
+        .where(eq(categoryVisibility.groupId, group.id));
+
       return {
         ...group,
         members: memberRows.map((m) => ({ userId: m.userId, name: m.name ?? "Unknown", addedAt: m.addedAt })),
         documents: docRows.map((d) => ({ documentId: d.documentId, title: d.title ?? "Untitled", assignedAt: d.assignedAt })),
+        categories: catRows.map((c) => ({ categoryId: c.categoryId, name: c.name ?? "Unnamed", assignedAt: c.assignedAt })),
       };
     }),
   );
@@ -195,7 +208,7 @@ groupsApp.delete("/:id", requireRole("Admin"), async (c) => {
     return c.json({ error: "Group not found" }, 404);
   }
 
-  // Remove members and document assignments first
+  // Remove members, document assignments, and category assignments first
   await db
     .delete(visibilityGroupMembers)
     .where(eq(visibilityGroupMembers.groupId, id));
@@ -203,6 +216,10 @@ groupsApp.delete("/:id", requireRole("Admin"), async (c) => {
   await db
     .delete(documentVisibility)
     .where(eq(documentVisibility.groupId, id));
+
+  await db
+    .delete(categoryVisibility)
+    .where(eq(categoryVisibility.groupId, id));
 
   await db.delete(visibilityGroups).where(eq(visibilityGroups.id, id));
 
@@ -314,6 +331,64 @@ groupsApp.delete(
         and(
           eq(documentVisibility.groupId, groupId),
           eq(documentVisibility.documentId, documentId),
+        ),
+      );
+
+    return c.json({ success: true });
+  },
+);
+
+/**
+ * POST /:id/categories — Assign a group to a category (Admin only).
+ */
+groupsApp.post("/:id/categories", requireRole("Admin"), async (c) => {
+  const groupId = c.req.param("id");
+  const body = await c.req.json<{ categoryId?: string }>();
+
+  if (!body.categoryId) {
+    return c.json({ error: "categoryId is required" }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+
+  const [group] = await db
+    .select()
+    .from(visibilityGroups)
+    .where(eq(visibilityGroups.id, groupId))
+    .limit(1);
+
+  if (!group) {
+    return c.json({ error: "Group not found" }, 404);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  await db.insert(categoryVisibility).values({
+    categoryId: body.categoryId,
+    groupId,
+    assignedAt: now,
+  });
+
+  return c.json({ success: true }, 201);
+});
+
+/**
+ * DELETE /:id/categories/:categoryId — Remove group from category (Admin only).
+ */
+groupsApp.delete(
+  "/:id/categories/:categoryId",
+  requireRole("Admin"),
+  async (c) => {
+    const groupId = c.req.param("id");
+    const categoryId = c.req.param("categoryId");
+    const db = drizzle(c.env.DB);
+
+    await db
+      .delete(categoryVisibility)
+      .where(
+        and(
+          eq(categoryVisibility.groupId, groupId),
+          eq(categoryVisibility.categoryId, categoryId),
         ),
       );
 

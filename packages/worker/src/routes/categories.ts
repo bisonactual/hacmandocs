@@ -3,16 +3,27 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireAdminOrManager } from "../middleware/rbac";
-import { categories, documents } from "../db/schema";
+import { categories, documents, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
+
+const GROUP_LEVEL_RANK: Record<string, number> = {
+  Non_Member: 0,
+  Member: 1,
+  Team_Leader: 2,
+  Manager: 3,
+  Board_Member: 4,
+};
 
 const categoriesApp = new Hono<Env>();
 
 /**
  * GET / — List all categories (Viewer+).
  * Returns all categories with parent_id so the frontend can build the tree.
+ * Includes `isPrivate` flag for categories that have visibility group assignments.
+ * Filters out private categories for users without access.
  */
 categoriesApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
+  const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
@@ -24,7 +35,59 @@ categoriesApp.get("/", async (c) => {
     })
     .from(categories);
 
-  return c.json(rows);
+  // Get all category visibility assignments
+  const catVisRows = await db
+    .select({
+      categoryId: categoryVisibility.categoryId,
+      groupId: categoryVisibility.groupId,
+      groupLevel: visibilityGroups.groupLevel,
+    })
+    .from(categoryVisibility)
+    .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id));
+
+  // Build map: categoryId → group assignments
+  const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+  for (const row of catVisRows) {
+    if (!catGroupMap.has(row.categoryId)) {
+      catGroupMap.set(row.categoryId, []);
+    }
+    catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+  }
+
+  // Admins see everything
+  if (session?.permissionLevel === "Admin") {
+    return c.json(rows.map((r) => ({ ...r, isPrivate: catGroupMap.has(r.id) })));
+  }
+
+  // For other users, filter by group level hierarchy + explicit membership
+  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
+
+  let userGroupIds = new Set<string>();
+  if (session) {
+    const memberships = await db
+      .select({ groupId: visibilityGroupMembers.groupId })
+      .from(visibilityGroupMembers)
+      .where(eq(visibilityGroupMembers.userId, session.userId));
+    userGroupIds = new Set(memberships.map((m) => m.groupId));
+  }
+
+  const filtered = rows.filter((r) => {
+    const groups = catGroupMap.get(r.id);
+    if (!groups || groups.length === 0) return true; // No restrictions
+
+    // Check group level hierarchy
+    for (const g of groups) {
+      const requiredRank = GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0;
+      if (userLevelRank >= requiredRank) return true;
+    }
+    // Check explicit membership
+    for (const g of groups) {
+      if (userGroupIds.has(g.groupId)) return true;
+    }
+    return false;
+  });
+
+  return c.json(filtered.map((r) => ({ ...r, isPrivate: catGroupMap.has(r.id) })));
 });
 
 /**

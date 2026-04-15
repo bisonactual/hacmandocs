@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { documentVisibility, visibilityGroupMembers, visibilityGroups } from "../db/schema";
+import { documentVisibility, visibilityGroupMembers, visibilityGroups, categoryVisibility } from "../db/schema";
 
 /**
  * Rank for each group level. Higher = more privileges.
@@ -143,6 +143,42 @@ searchApp.get("/", async (c) => {
     }
     return false;
   });
+
+  // Also filter by category visibility — docs in hidden categories are restricted
+  const categoryIds = [...new Set(results.filter((r) => r.categoryId).map((r) => r.categoryId!))];
+  if (categoryIds.length > 0) {
+    const catVisRows = await db
+      .select({
+        categoryId: categoryVisibility.categoryId,
+        groupId: categoryVisibility.groupId,
+        groupLevel: visibilityGroups.groupLevel,
+      })
+      .from(categoryVisibility)
+      .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
+      .where(inArray(categoryVisibility.categoryId, categoryIds));
+
+    const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
+    for (const row of catVisRows) {
+      if (!catGroupMap.has(row.categoryId)) {
+        catGroupMap.set(row.categoryId, []);
+      }
+      catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
+    }
+
+    results = results.filter((r) => {
+      if (!r.categoryId) return true;
+      const catGroups = catGroupMap.get(r.categoryId);
+      if (!catGroups || catGroups.length === 0) return true;
+      for (const g of catGroups) {
+        const requiredRank = GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0;
+        if (userLevelRank >= requiredRank) return true;
+      }
+      for (const g of catGroups) {
+        if (userGroupIds.has(g.groupId)) return true;
+      }
+      return false;
+    });
+  }
 
   return c.json({ results });
 });

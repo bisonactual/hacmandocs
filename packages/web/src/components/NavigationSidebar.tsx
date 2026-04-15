@@ -8,6 +8,7 @@ interface CategoryItem {
   name: string;
   parentId: string | null;
   sortOrder: number;
+  isPrivate?: boolean;
 }
 
 interface DocumentItem {
@@ -26,15 +27,28 @@ interface CategoryNode extends CategoryItem {
 function buildTree(
   categories: CategoryItem[],
   documents: DocumentItem[],
-): { tree: CategoryNode[]; uncategorized: DocumentItem[] } {
+): { tree: CategoryNode[]; uncategorized: DocumentItem[]; privateTree: CategoryNode[]; privateDocs: DocumentItem[] } {
+  const publicCats = categories.filter((c) => !c.isPrivate);
+  const privateCats = categories.filter((c) => c.isPrivate);
+  const privateCatIds = new Set(privateCats.map((c) => c.id));
+
   const map = new Map<string, CategoryNode>();
-  for (const cat of categories) {
+  for (const cat of publicCats) {
     map.set(cat.id, { ...cat, children: [], documents: [] });
   }
 
+  const privateMap = new Map<string, CategoryNode>();
+  for (const cat of privateCats) {
+    privateMap.set(cat.id, { ...cat, children: [], documents: [] });
+  }
+
   const uncategorized: DocumentItem[] = [];
+  const privateDocs: DocumentItem[] = [];
+
   for (const doc of documents) {
-    if (doc.categoryId && map.has(doc.categoryId)) {
+    if (doc.categoryId && privateCatIds.has(doc.categoryId)) {
+      privateMap.get(doc.categoryId)?.documents.push(doc);
+    } else if (doc.categoryId && map.has(doc.categoryId)) {
       map.get(doc.categoryId)!.documents.push(doc);
     } else {
       uncategorized.push(doc);
@@ -50,12 +64,23 @@ function buildTree(
     }
   }
 
+  const privateRoots: CategoryNode[] = [];
+  for (const node of privateMap.values()) {
+    if (node.parentId && privateMap.has(node.parentId)) {
+      privateMap.get(node.parentId)!.children.push(node);
+    } else {
+      privateRoots.push(node);
+    }
+  }
+
   const sort = (nodes: CategoryNode[]) =>
     nodes.sort((a, b) => a.sortOrder - b.sortOrder);
   sort(roots);
   for (const node of map.values()) sort(node.children);
+  sort(privateRoots);
+  for (const node of privateMap.values()) sort(node.children);
 
-  return { tree: roots, uncategorized };
+  return { tree: roots, uncategorized, privateTree: privateRoots, privateDocs };
 }
 
 function CategoryTreeNode({ node }: { node: CategoryNode }) {
@@ -106,6 +131,48 @@ function CategoryTreeNode({ node }: { node: CategoryNode }) {
   );
 }
 
+function PrivateDocsSection({ privateTree, privateDocs }: { privateTree: CategoryNode[]; privateDocs: DocumentItem[] }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm hover:bg-hacman-gray transition-colors"
+        aria-expanded={expanded}
+      >
+        <span>🔒</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-gray-300">Private Docs</span>
+        <span className="ml-auto text-xs text-hacman-muted">{expanded ? "▾" : "▸"}</span>
+      </button>
+      {expanded && (
+        <ul className="mt-0.5 space-y-0.5">
+          {privateTree.map((node) => (
+            <CategoryTreeNode key={node.id} node={node} />
+          ))}
+          {privateDocs.map((doc) => (
+            <li key={doc.id}>
+              <NavLink
+                to={`/documents/${doc.id}`}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                    isActive
+                      ? "bg-hacman-yellow/10 text-hacman-yellow"
+                      : "text-gray-400 hover:bg-hacman-gray hover:text-gray-200"
+                  }`
+                }
+              >
+                <span className="truncate">{doc.title}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export default function NavigationSidebar() {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -126,7 +193,8 @@ export default function NavigationSidebar() {
       .finally(() => setLoading(false));
   }, []);
 
-  const { tree, uncategorized } = buildTree(categories, documents);
+  const { tree, uncategorized, privateTree, privateDocs } = buildTree(categories, documents);
+  const hasPrivateContent = privateTree.length > 0 || privateDocs.length > 0;
 
   return (
     <nav
@@ -198,6 +266,13 @@ export default function NavigationSidebar() {
           </ul>
         )}
       </div>
+
+      {/* Private Docs section — only shown if user has access to private categories */}
+      {hasPrivateContent && (
+        <div className="border-t border-hacman-gray p-2">
+          <PrivateDocsSection privateTree={privateTree} privateDocs={privateDocs} />
+        </div>
+      )}
 
       {/* Training section for logged-in users */}
       {user && (

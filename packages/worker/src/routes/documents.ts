@@ -23,12 +23,14 @@ export function extractPlainText(node: DocumentNode): string {
 const documentsApp = new Hono<Env>();
 
 /**
- * GET / — List all documents (public).
+ * GET / — List all documents.
  * Returns metadata only (no content_json) for performance.
- * Visibility-restricted docs are filtered out for non-members.
+ * Includes a `hasVisibilityGroups` flag so the frontend can identify restricted docs.
+ * Visibility-restricted docs in hidden categories are filtered for non-privileged users.
  */
 documentsApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
+  const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({

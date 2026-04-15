@@ -8,6 +8,7 @@ interface GroupRow {
   groupLevel: GroupLevel;
   members: { userId: string; name: string }[];
   documents: { documentId: string; title: string }[];
+  categories: { categoryId: string; name: string }[];
 }
 
 interface UserOption {
@@ -18,6 +19,11 @@ interface UserOption {
 interface DocOption {
   id: string;
   title: string;
+}
+
+interface CatOption {
+  id: string;
+  name: string;
 }
 
 const groupLevels: GroupLevel[] = [
@@ -32,6 +38,7 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [docs, setDocs] = useState<DocOption[]>([]);
+  const [cats, setCats] = useState<CatOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Create form
@@ -43,11 +50,13 @@ export default function GroupsPage() {
       apiFetch<GroupRow[]>("/api/groups"),
       apiFetch<UserOption[]>("/api/users"),
       apiFetch<DocOption[]>("/api/documents"),
+      apiFetch<CatOption[]>("/api/categories"),
     ])
-      .then(([g, u, d]) => {
+      .then(([g, u, d, c]) => {
         setGroups(g);
         setUsers(u);
         setDocs(d);
+        setCats(c);
       })
       .finally(() => setLoading(false));
   };
@@ -97,6 +106,21 @@ export default function GroupsPage() {
 
   const unassignDoc = async (groupId: string, documentId: string) => {
     await apiFetch(`/api/groups/${groupId}/documents/${documentId}`, {
+      method: "DELETE",
+    });
+    load();
+  };
+
+  const assignCat = async (groupId: string, categoryId: string) => {
+    await apiFetch(`/api/groups/${groupId}/categories`, {
+      method: "POST",
+      body: JSON.stringify({ categoryId }),
+    });
+    load();
+  };
+
+  const unassignCat = async (groupId: string, categoryId: string) => {
+    await apiFetch(`/api/groups/${groupId}/categories/${categoryId}`, {
       method: "DELETE",
     });
     load();
@@ -236,6 +260,48 @@ export default function GroupsPage() {
                     .filter((d) => !g.documents.some((gd) => gd.documentId === d.id))
                     .map((d) => (
                       <option key={d.id} value={d.id}>{d.title}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Categories */}
+            <div className="mt-3">
+              <p className="text-xs font-medium text-hacman-muted">Categories</p>
+              <ul className="mt-1 flex flex-wrap gap-1">
+                {g.categories.map((cat) => (
+                  <li
+                    key={cat.categoryId}
+                    className="flex items-center gap-1 rounded-lg bg-purple-500/10 px-2 py-0.5 text-xs text-gray-200"
+                  >
+                    {cat.name}
+                    <button
+                      type="button"
+                      onClick={() => unassignCat(g.id, cat.categoryId)}
+                      className="text-red-400 hover:text-red-300"
+                      aria-label={`Unassign ${cat.name}`}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-1 flex gap-1">
+                <label htmlFor={`add-cat-${g.id}`} className="sr-only">Assign category</label>
+                <select
+                  id={`add-cat-${g.id}`}
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) assignCat(g.id, e.target.value);
+                    e.target.value = "";
+                  }}
+                  className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-0.5 text-xs text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
+                >
+                  <option value="">Assign category…</option>
+                  {cats
+                    .filter((c) => !g.categories.some((gc) => gc.categoryId === c.id))
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
                     ))}
                 </select>
               </div>
