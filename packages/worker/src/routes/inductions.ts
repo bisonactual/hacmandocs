@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq, and, lte, gt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole, requireAdminOrManager } from "../middleware/rbac";
+import { requireAdminOrManager } from "../middleware/rbac";
 import { requireTrainer } from "../middleware/rbac";
 import {
   users,

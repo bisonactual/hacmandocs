@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole, requireAdminOrManager } from "../middleware/rbac";
-import { users, permissionAuditLog } from "../db/schema";
+import { users } from "../db/schema";
 import { invalidateUserSessions } from "../auth/session";
 import type { GroupLevel, PermissionLevel } from "@hacmandocs/shared";
 
