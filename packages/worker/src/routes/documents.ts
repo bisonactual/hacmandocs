@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
 import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
-import { documents, documentVersions, documentVisibility as _documentVisibility, categoryVisibility as _categoryVisibility, visibilityGroups as _visibilityGroups, visibilityGroupMembers as _visibilityGroupMembers } from "../db/schema";
+import { documents, documentVersions, documentVisibility, categoryVisibility as _categoryVisibility, visibilityGroups as _visibilityGroups, visibilityGroupMembers as _visibilityGroupMembers } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 
 /**
