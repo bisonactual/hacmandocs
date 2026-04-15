@@ -52,80 +52,10 @@ documentsApp.get("/", async (c) => {
     })
     .from(documents);
 
-  // Admins see everything (including unpublished)
-  if (session?.permissionLevel === "Admin") {
-    return c.json(rows);
-  }
-
-  // Non-admins only see published documents
-  const publishedRows = rows.filter((r) => r.isPublished === 1);
-
-  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
-
-  let userGroupIds = new Set<string>();
-  if (session) {
-    const memberships = await db
-      .select({ groupId: visibilityGroupMembers.groupId })
-      .from(visibilityGroupMembers)
-      .where(eq(visibilityGroupMembers.userId, session.userId));
-    userGroupIds = new Set(memberships.map((m) => m.groupId));
-  }
-
-  // Get doc-level visibility assignments
-  const docIds = publishedRows.map((r) => r.id);
-  const docVisRows = docIds.length > 0
-    ? await db
-        .select({ documentId: documentVisibility.documentId, groupId: documentVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-        .from(documentVisibility)
-        .leftJoin(visibilityGroups, eq(documentVisibility.groupId, visibilityGroups.id))
-        .where(inArray(documentVisibility.documentId, docIds))
-    : [];
-
-  const docGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
-  for (const row of docVisRows) {
-    if (!docGroupMap.has(row.documentId)) docGroupMap.set(row.documentId, []);
-    docGroupMap.get(row.documentId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
-  }
-
-  // Get category-level visibility assignments
-  const catIds = [...new Set(publishedRows.filter((r) => r.categoryId).map((r) => r.categoryId!))];
-  const catVisRows = catIds.length > 0
-    ? await db
-        .select({ categoryId: categoryVisibility.categoryId, groupId: categoryVisibility.groupId, groupLevel: visibilityGroups.groupLevel })
-        .from(categoryVisibility)
-        .leftJoin(visibilityGroups, eq(categoryVisibility.groupId, visibilityGroups.id))
-        .where(inArray(categoryVisibility.categoryId, catIds))
-    : [];
-
-  const catGroupMap = new Map<string, { groupId: string; groupLevel: string | null }[]>();
-  for (const row of catVisRows) {
-    if (!catGroupMap.has(row.categoryId)) catGroupMap.set(row.categoryId, []);
-    catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
-  }
-
-  const canAccess = (groups: { groupId: string; groupLevel: string | null }[]) => {
-    for (const g of groups) {
-      if (userLevelRank >= (GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0)) return true;
-    }
-    for (const g of groups) {
-      if (userGroupIds.has(g.groupId)) return true;
-    }
-    return false;
-  };
-
-  const filtered = publishedRows.filter((r) => {
-    // Check doc-level visibility
-    const docGroups = docGroupMap.get(r.id);
-    if (docGroups && docGroups.length > 0 && !canAccess(docGroups)) return false;
-    // Check category-level visibility
-    if (r.categoryId) {
-      const catGroups = catGroupMap.get(r.categoryId);
-      if (catGroups && catGroups.length > 0 && !canAccess(catGroups)) return false;
-    }
-    return true;
-  });
-
-  return c.json(filtered);
+  // Return all documents — visibility filtering is handled per-document
+  // on the GET /:id endpoint. The list endpoint is public and shows all
+  // non-sensitive metadata so the sidebar can render the full doc tree.
+  return c.json(rows);
 });
 
 /**
@@ -155,11 +85,6 @@ documentsApp.get("/:id", async (c) => {
   const permissionLevel = session?.permissionLevel ?? "Viewer";
   const groupLevel = session?.groupLevel;
   const userId = session?.userId ?? "";
-
-  // Non-admins cannot access unpublished documents
-  if (permissionLevel !== "Admin" && doc.isPublished === 0) {
-    return c.json({ error: "Document not found" }, 404);
-  }
 
   // Check document-level visibility
   const docVisible = await checkDocumentVisibility(c.env.DB, userId, id, permissionLevel, groupLevel);

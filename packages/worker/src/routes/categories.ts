@@ -54,40 +54,10 @@ categoriesApp.get("/", async (c) => {
     catGroupMap.get(row.categoryId)!.push({ groupId: row.groupId, groupLevel: row.groupLevel });
   }
 
-  // Admins see everything
-  if (session?.permissionLevel === "Admin") {
-    return c.json(rows.map((r) => ({ ...r, isPrivate: catGroupMap.has(r.id) })));
-  }
-
-  // For other users, filter by group level hierarchy + explicit membership
-  const userLevelRank = session ? (GROUP_LEVEL_RANK[session.groupLevel] ?? 0) : 0;
-
-  let userGroupIds = new Set<string>();
-  if (session) {
-    const memberships = await db
-      .select({ groupId: visibilityGroupMembers.groupId })
-      .from(visibilityGroupMembers)
-      .where(eq(visibilityGroupMembers.userId, session.userId));
-    userGroupIds = new Set(memberships.map((m) => m.groupId));
-  }
-
-  const filtered = rows.filter((r) => {
-    const groups = catGroupMap.get(r.id);
-    if (!groups || groups.length === 0) return true; // No restrictions
-
-    // Check group level hierarchy
-    for (const g of groups) {
-      const requiredRank = GROUP_LEVEL_RANK[g.groupLevel ?? ""] ?? 0;
-      if (userLevelRank >= requiredRank) return true;
-    }
-    // Check explicit membership
-    for (const g of groups) {
-      if (userGroupIds.has(g.groupId)) return true;
-    }
-    return false;
-  });
-
-  return c.json(filtered.map((r) => ({ ...r, isPrivate: catGroupMap.has(r.id) })));
+  // Return all categories — the list is public so the sidebar can build
+  // the full navigation tree. Per-category access control is enforced on
+  // the document detail endpoint via checkCategoryVisibility.
+  return c.json(rows.map((r) => ({ ...r, isPrivate: catGroupMap.has(r.id) })));
 });
 
 /**

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import HacmanLogo from "../components/HacmanLogo";
 
@@ -141,9 +141,16 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-lg border border-hacman-yellow bg-transparent px-4 py-2.5 font-medium text-hacman-yellow hover:bg-hacman-yellow hover:text-hacman-black disabled:opacity-50 transition-colors"
           >
-            {loading ? "Signing in…" : "Sign in / Sign up"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <p className="text-center text-sm text-hacman-muted">
+          Don't have an account?{" "}
+          <Link to="/signup" className="text-hacman-yellow hover:underline">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );
