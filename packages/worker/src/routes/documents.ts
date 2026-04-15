@@ -30,7 +30,6 @@ const documentsApp = new Hono<Env>();
  */
 documentsApp.get("/", async (c) => {
   const db = drizzle(c.env.DB);
-  const session = c.get("session") as import("../auth/session").SessionData | undefined;
 
   const rows = await db
     .select({
