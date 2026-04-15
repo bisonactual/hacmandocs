@@ -77,8 +77,16 @@ app.use("/api/leaderboard", optionalAuthMiddleware);
 
 // All other /api/* routes require authentication
 app.use("/api/*", createMiddleware<Env>(async (c, next) => {
-  // Skip auth for image serving — images are public (optional auth already applied above)
-  if (c.req.path.startsWith("/api/images/") && c.req.method === "GET") {
+  // Skip auth for public GET routes (optional auth already applied above)
+  const path = c.req.path;
+  const method = c.req.method;
+  if (method === "GET" && (
+    path.startsWith("/api/documents") ||
+    path.startsWith("/api/categories") ||
+    path.startsWith("/api/search") ||
+    path.startsWith("/api/images/") ||
+    path.startsWith("/api/leaderboard")
+  )) {
     await next();
     return;
   }

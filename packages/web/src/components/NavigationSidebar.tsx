@@ -142,15 +142,14 @@ export default function NavigationSidebar() {
               Documents
             </h2>
           </div>
-          {user && (
-            <Link
-              to="/documents/new"
-              className="rounded px-2 py-0.5 text-xs text-hacman-yellow hover:bg-hacman-yellow/10 transition-colors"
-              title="Create new document"
-            >
-              + New
-            </Link>
-          )}
+          <Link
+            to={user ? "/documents/new" : "/login"}
+            state={!user ? { from: { pathname: "/documents/new" }, message: "create" } : undefined}
+            className="rounded px-2 py-0.5 text-xs text-hacman-yellow hover:bg-hacman-yellow/10 transition-colors"
+            title="Create new document"
+          >
+            + New
+          </Link>
         </div>
       </div>
 

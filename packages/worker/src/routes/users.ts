@@ -209,4 +209,94 @@ usersApp.put("/:id/permission", requireRole("Admin"), async (c) => {
   return c.json(updatedUser);
 });
 
+/**
+ * PUT /:id — Admin-only endpoint to edit a user's name, email, or username.
+ */
+usersApp.put("/:id", requireRole("Admin"), async (c) => {
+  const targetId = c.req.param("id");
+  const body = await c.req.json<{
+    name?: string;
+    email?: string;
+    username?: string;
+  }>();
+
+  const db = drizzle(c.env.DB);
+
+  const [targetUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+
+  if (!targetUser) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  const updates: Record<string, unknown> = {
+    updatedAt: Math.floor(Date.now() / 1000),
+  };
+
+  if (body.name !== undefined) {
+    if (!body.name.trim()) return c.json({ error: "Name cannot be empty." }, 400);
+    updates.name = body.name.trim();
+  }
+
+  if (body.email !== undefined) {
+    updates.email = body.email.trim();
+  }
+
+  if (body.username !== undefined) {
+    if (!body.username.trim()) return c.json({ error: "Username cannot be empty." }, 400);
+    const trimmed = body.username.trim();
+    const [existing] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, trimmed))
+      .limit(1);
+    if (existing && existing.id !== targetId) {
+      return c.json({ error: "This username is already taken." }, 409);
+    }
+    updates.username = trimmed;
+  }
+
+  await db.update(users).set(updates).where(eq(users.id, targetId));
+
+  const [updatedUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+
+  return c.json(updatedUser);
+});
+
+/**
+ * DELETE /:id — Admin-only endpoint to delete a user.
+ * Prevents self-deletion.
+ */
+usersApp.delete("/:id", requireRole("Admin"), async (c) => {
+  const targetId = c.req.param("id");
+  const session = c.get("session");
+
+  if (targetId === session.userId) {
+    return c.json({ error: "You cannot delete your own account." }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+
+  const [targetUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+
+  if (!targetUser) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  await db.delete(users).where(eq(users.id, targetId));
+
+  return c.json({ success: true });
+});
+
 export default usersApp;

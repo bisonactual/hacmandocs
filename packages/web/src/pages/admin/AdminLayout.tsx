@@ -36,33 +36,43 @@ export default function AdminLayout() {
   }
 
   return (
-    <div>
-      <h2 className="mb-4 text-xl font-semibold text-white">Admin Panel</h2>
-      <nav className="mb-6 border-b border-hacman-gray">
-        <div className="flex gap-6">
+    <div className="flex gap-8">
+      {/* Sidebar navigation */}
+      <aside className="w-52 shrink-0">
+        <h2 className="mb-5 text-xl font-semibold text-white">Admin Panel</h2>
+        <nav className="space-y-5">
           {sections.map((section) => (
-            <div key={section.label} className="flex items-center gap-1">
-              <span className="text-xs text-hacman-muted uppercase tracking-wide mr-1">{section.label}</span>
-              {section.tabs.map((t) => (
-                <NavLink
-                  key={t.to}
-                  to={t.to}
-                  className={({ isActive }) =>
-                    `px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "border-b-2 border-hacman-yellow text-hacman-yellow"
-                        : "text-gray-400 hover:text-gray-200"
-                    }`
-                  }
-                >
-                  {t.label}
-                </NavLink>
-              ))}
+            <div key={section.label}>
+              <h3 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-hacman-muted">
+                {section.label}
+              </h3>
+              <ul className="space-y-0.5">
+                {section.tabs.map((t) => (
+                  <li key={t.to}>
+                    <NavLink
+                      to={t.to}
+                      className={({ isActive }) =>
+                        `block rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                          isActive
+                            ? "bg-hacman-yellow/10 font-medium text-hacman-yellow"
+                            : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+                        }`
+                      }
+                    >
+                      {t.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
-        </div>
-      </nav>
-      <Outlet />
+        </nav>
+      </aside>
+
+      {/* Main content */}
+      <main className="min-w-0 flex-1">
+        <Outlet />
+      </main>
     </div>
   );
 }

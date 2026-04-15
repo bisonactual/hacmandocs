@@ -1,12 +1,16 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import HacmanLogo from "../components/HacmanLogo";
 
 export default function LoginPage() {
   const { loginWithMember, loginWithOAuth, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as { from?: { pathname: string }; message?: string } | null;
+  const redirectTo = locationState?.from?.pathname ?? "/";
+  const showCreateMessage = locationState?.message === "create";
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +21,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await loginWithMember(username, password);
-      navigate("/");
+      navigate(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     }
@@ -32,6 +36,18 @@ export default function LoginPage() {
             Documentation &amp; Training Portal
           </p>
         </div>
+
+        {/* Friendly nudge when redirected from +New */}
+        {showCreateMessage && (
+          <div className="rounded-lg border border-hacman-yellow/30 bg-hacman-yellow/5 p-4 text-center">
+            <p className="text-sm font-medium text-hacman-yellow">
+              We'd love to have you contribute! ✨
+            </p>
+            <p className="mt-1 text-sm text-gray-400">
+              Sign in to start creating and editing docs — it only takes a moment.
+            </p>
+          </div>
+        )}
 
         {/* OAuth login buttons */}
         <div className="space-y-3">
