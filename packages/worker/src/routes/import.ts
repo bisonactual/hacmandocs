@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
+import { requireAdminOrManager } from "../middleware/rbac";
 import { documents, categories } from "../db/schema";
 import {
   parseMarkdownWithWarnings,
@@ -245,7 +245,7 @@ interface GitHubContentResponse { content: string; encoding: string; }
 
 const importApp = new Hono<Env>();
 
-importApp.post("/", requireRole("Admin"), async (c) => {
+importApp.post("/", requireAdminOrManager(), async (c) => {
   const body = await c.req.json<{
     repoUrl?: string;
     githubToken?: string;
@@ -321,7 +321,7 @@ importApp.post("/", requireRole("Admin"), async (c) => {
   return c.json(report);
 });
 
-importApp.post("/zip", requireRole("Admin"), async (c) => {
+importApp.post("/zip", requireAdminOrManager(), async (c) => {
   const session = c.get("session");
   const formData = await c.req.formData();
   const rawFile = formData.get("file");

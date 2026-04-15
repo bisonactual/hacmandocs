@@ -23,6 +23,12 @@ export function requireToolAccess(paramName: string = "toolId") {
       return;
     }
 
+    // Managers always pass
+    if (session.groupLevel === "Manager") {
+      await next();
+      return;
+    }
+
     const toolId = c.req.param(paramName);
     if (!toolId) {
       return c.json({ error: "Tool ID is required." }, 400);
@@ -91,6 +97,12 @@ export function requireAreaAccess(paramName: string = "areaId") {
     const session = c.get("session");
 
     if (session.permissionLevel === "Admin") {
+      await next();
+      return;
+    }
+
+    // Managers always pass
+    if (session.groupLevel === "Manager") {
       await next();
       return;
     }

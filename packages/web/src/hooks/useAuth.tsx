@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import type { PermissionLevel } from "@hacmandocs/shared";
+import type { PermissionLevel, GroupLevel } from "@hacmandocs/shared";
 import { apiFetch } from "../lib/api";
 
 interface AuthUser {
@@ -16,6 +16,7 @@ interface AuthUser {
   email: string;
   username: string | null;
   permissionLevel: PermissionLevel;
+  groupLevel: GroupLevel;
 }
 
 interface AuthContextValue {
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: raw.email as string,
           username: (raw.username as string | null) ?? null,
           permissionLevel: raw.permission_level as PermissionLevel ?? raw.permissionLevel as PermissionLevel,
+          groupLevel: (raw.group_level as GroupLevel) ?? (raw.groupLevel as GroupLevel) ?? "Member",
         };
         setUser(u);
         localStorage.setItem(USER_KEY, JSON.stringify(u));

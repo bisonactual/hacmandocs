@@ -2,11 +2,13 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
+import { requireRole, requireAdminOrManager } from "../middleware/rbac";
 import { users, permissionAuditLog } from "../db/schema";
-import type { PermissionLevel } from "@hacmandocs/shared";
+import { invalidateUserSessions } from "../auth/session";
+import type { GroupLevel, PermissionLevel } from "@hacmandocs/shared";
 
 const VALID_LEVELS: PermissionLevel[] = ["Viewer", "Editor", "Approver", "Admin"];
+const VALID_GROUP_LEVELS: GroupLevel[] = ["Member", "Non_Member", "Team_Leader", "Manager", "Board_Member"];
 
 const usersApp = new Hono<Env>();
 
@@ -72,9 +74,9 @@ usersApp.put("/me/username", async (c) => {
 });
 
 /**
- * GET / — List all users (Admin only).
+ * GET / — List all users (Admin or Manager).
  */
-usersApp.get("/", requireRole("Admin"), async (c) => {
+usersApp.get("/", requireAdminOrManager(), async (c) => {
   const db = drizzle(c.env.DB);
   const rows = await db.select().from(users);
   return c.json(rows);
@@ -82,7 +84,7 @@ usersApp.get("/", requireRole("Admin"), async (c) => {
 
 /**
  * POST / — Create a new user (Admin only).
- * Accepts { name, email, username, permissionLevel }.
+ * Accepts { name, email, username, permissionLevel, groupLevel }.
  */
 usersApp.post("/", requireRole("Admin"), async (c) => {
   const body = await c.req.json<{
@@ -90,6 +92,7 @@ usersApp.post("/", requireRole("Admin"), async (c) => {
     email?: string;
     username?: string;
     permissionLevel?: string;
+    groupLevel?: string;
   }>();
 
   if (!body.name || !body.name.trim()) {
@@ -103,6 +106,17 @@ usersApp.post("/", requireRole("Admin"), async (c) => {
   const level = body.permissionLevel ?? "Viewer";
   if (!VALID_LEVELS.includes(level as PermissionLevel)) {
     return c.json({ error: "Invalid permission level." }, 400);
+  }
+
+  const groupLevel = body.groupLevel ?? "Member";
+  if (!VALID_GROUP_LEVELS.includes(groupLevel as GroupLevel)) {
+    return c.json(
+      {
+        error:
+          "Invalid group level. Must be one of: Member, Non_Member, Team_Leader, Manager, Board_Member.",
+      },
+      400,
+    );
   }
 
   const db = drizzle(c.env.DB);
@@ -130,6 +144,7 @@ usersApp.post("/", requireRole("Admin"), async (c) => {
     authMethod: "member",
     externalId: trimmedUsername,
     permissionLevel: level,
+    groupLevel: groupLevel,
     createdAt: now,
     updatedAt: now,
   });
@@ -144,10 +159,11 @@ usersApp.post("/", requireRole("Admin"), async (c) => {
 });
 
 /**
- * PUT /:id/permission — Admin-only endpoint to change a user's permission level.
- * Validates the request body, updates D1, writes an audit log entry, and returns the updated user.
+ * PUT /:id/permission — Admin or Manager endpoint to change a user's permission level.
+ * Validates the request body, enforces Manager boundary rules, updates D1 atomically
+ * with an audit log entry, invalidates target sessions, and returns the updated user.
  */
-usersApp.put("/:id/permission", requireRole("Admin"), async (c) => {
+usersApp.put("/:id/permission", requireAdminOrManager(), async (c) => {
   const targetId = c.req.param("id");
   const body = await c.req.json<{ permissionLevel?: string }>();
 
@@ -179,27 +195,124 @@ usersApp.put("/:id/permission", requireRole("Admin"), async (c) => {
     return c.json({ error: "User not found" }, 404);
   }
 
-  const oldLevel = targetUser.permissionLevel;
-  const now = Math.floor(Date.now() / 1000);
   const session = c.get("session");
 
-  // 3. Update the user's permission level
-  await db
-    .update(users)
-    .set({ permissionLevel: newLevel, updatedAt: now })
-    .where(eq(users.id, targetId));
+  // 3. Enforce Manager boundary rules
+  if (session.permissionLevel !== "Admin" && session.groupLevel === "Manager") {
+    if (newLevel === "Admin") {
+      return c.json({ error: "Only Admins can promote to Admin." }, 403);
+    }
+    if (targetUser.permissionLevel === "Admin") {
+      return c.json({ error: "Only Admins can change Admin users' permissions." }, 403);
+    }
+    if (targetUser.groupLevel === "Board_Member") {
+      return c.json({ error: "Only Admins can change Board Member users' permissions." }, 403);
+    }
+    if (targetUser.groupLevel === "Manager") {
+      return c.json({ error: "Only Admins can change Manager users' permissions." }, 403);
+    }
+  }
 
-  // 4. Write audit log entry
-  await db.insert(permissionAuditLog).values({
-    id: crypto.randomUUID(),
-    adminId: session.userId,
-    targetUserId: targetId,
-    oldLevel,
-    newLevel,
-    createdAt: now,
-  });
+  const oldLevel = targetUser.permissionLevel;
+  const now = Math.floor(Date.now() / 1000);
+  const auditId = crypto.randomUUID();
 
-  // 5. Return the updated user
+  // 4. Atomic batch: update permission + write audit log
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE users SET permission_level = ?, updated_at = ? WHERE id = ?",
+    ).bind(newLevel, now, targetId),
+    c.env.DB.prepare(
+      "INSERT INTO permission_audit_log (id, admin_id, target_user_id, old_level, new_level, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).bind(auditId, session.userId, targetId, oldLevel, newLevel, now),
+  ]);
+
+  // 5. Invalidate target user's sessions
+  await invalidateUserSessions(c.env.SESSIONS, targetId);
+
+  // 6. Return the updated user
+  const [updatedUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+
+  return c.json(updatedUser);
+});
+
+/**
+ * PUT /:id/group-level — Admin or Manager endpoint to change a user's group level.
+ * Validates the request body, enforces Manager boundary rules, updates D1 atomically
+ * with an audit log entry, invalidates target sessions, and returns the updated user.
+ */
+usersApp.put("/:id/group-level", requireAdminOrManager(), async (c) => {
+  const targetId = c.req.param("id");
+  const body = await c.req.json<{ groupLevel?: string }>();
+
+  // 1. Validate groupLevel
+  if (
+    !body.groupLevel ||
+    !VALID_GROUP_LEVELS.includes(body.groupLevel as GroupLevel)
+  ) {
+    return c.json(
+      {
+        error:
+          "Invalid group level. Must be one of: Member, Non_Member, Team_Leader, Manager, Board_Member.",
+      },
+      400,
+    );
+  }
+
+  const newLevel = body.groupLevel as GroupLevel;
+  const db = drizzle(c.env.DB);
+
+  // 2. Look up the target user
+  const [targetUser] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, targetId))
+    .limit(1);
+
+  if (!targetUser) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  const session = c.get("session");
+
+  // 3. Enforce Manager boundary rules (Admins skip all checks)
+  if (session.permissionLevel !== "Admin" && session.groupLevel === "Manager") {
+    if (targetId === session.userId) {
+      return c.json({ error: "Managers cannot change their own group level." }, 403);
+    }
+    if (newLevel === "Manager" || newLevel === "Board_Member") {
+      return c.json({ error: "Only Admins can promote to Manager or Board_Member." }, 403);
+    }
+    if (targetUser.groupLevel === "Manager" || targetUser.groupLevel === "Board_Member") {
+      return c.json({ error: "Only Admins can change the group level of Managers or Board Members." }, 403);
+    }
+    if (targetUser.permissionLevel === "Admin") {
+      return c.json({ error: "Only Admins can change the group level of Admin users." }, 403);
+    }
+  }
+
+  const oldLevel = targetUser.groupLevel;
+  const now = Math.floor(Date.now() / 1000);
+  const auditId = crypto.randomUUID();
+
+  // 4. Atomic batch: update group_level + write audit log
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE users SET group_level = ?, updated_at = ? WHERE id = ?",
+    ).bind(newLevel, now, targetId),
+    c.env.DB.prepare(
+      "INSERT INTO group_level_audit_log (id, acting_user_id, target_user_id, old_level, new_level, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+    ).bind(auditId, session.userId, targetId, oldLevel, newLevel, now),
+  ]);
+
+  // 5. Invalidate target user's sessions
+  await invalidateUserSessions(c.env.SESSIONS, targetId);
+
+  // 6. Return the updated user
   const [updatedUser] = await db
     .select()
     .from(users)

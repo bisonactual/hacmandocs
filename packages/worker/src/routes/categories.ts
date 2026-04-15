@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
+import { requireAdminOrManager } from "../middleware/rbac";
 import { categories, documents } from "../db/schema";
 
 const categoriesApp = new Hono<Env>();
@@ -31,7 +31,7 @@ categoriesApp.get("/", async (c) => {
  * POST / — Create a category (Admin only).
  * Accepts: name, parentId (optional), sortOrder (optional, default 0).
  */
-categoriesApp.post("/", requireRole("Admin"), async (c) => {
+categoriesApp.post("/", requireAdminOrManager(), async (c) => {
   const body = await c.req.json<{
     name?: string;
     parentId?: string | null;
@@ -68,7 +68,7 @@ categoriesApp.post("/", requireRole("Admin"), async (c) => {
  * PUT /:id — Update a category (Admin only).
  * Accepts: name, parentId, sortOrder.
  */
-categoriesApp.put("/:id", requireRole("Admin"), async (c) => {
+categoriesApp.put("/:id", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{
     name?: string;
@@ -122,7 +122,7 @@ categoriesApp.put("/:id", requireRole("Admin"), async (c) => {
  * DELETE /:id — Delete a category (Admin only).
  * Returns 400 if any documents reference this category (prevent orphaned documents).
  */
-categoriesApp.delete("/:id", requireRole("Admin"), async (c) => {
+categoriesApp.delete("/:id", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 

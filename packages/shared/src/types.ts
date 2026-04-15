@@ -37,6 +37,7 @@ export interface User {
   authMethod: AuthMethod;
   externalId: string;
   permissionLevel: PermissionLevel;
+  groupLevel: GroupLevel;
   createdAt: number;
   updatedAt: number;
 }

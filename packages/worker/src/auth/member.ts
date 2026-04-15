@@ -61,10 +61,12 @@ member.post("/login", async (c) => {
 
   let userId: string;
   let permissionLevel: string;
+  let groupLevel: string;
 
   if (existing) {
     userId = existing.id;
     permissionLevel = existing.permissionLevel;
+    groupLevel = existing.groupLevel;
     await db
       .update(users)
       .set({ username, updatedAt: now })
@@ -72,7 +74,8 @@ member.post("/login", async (c) => {
       .run();
   } else {
     userId = crypto.randomUUID();
-    permissionLevel = "Viewer"; // new member users default to Viewer
+    permissionLevel = "Editor"; // new member users default to Editor
+    groupLevel = "Member"; // new users default to Member
     await db
       .insert(users)
       .values({
@@ -96,6 +99,7 @@ member.post("/login", async (c) => {
     "member",
     permissionLevel as import("@hacmandocs/shared").PermissionLevel,
     username,
+    groupLevel as import("@hacmandocs/shared").GroupLevel,
   );
 
   return c.json({ token: session.token, expiresAt: session.expiresAt });

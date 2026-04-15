@@ -19,6 +19,7 @@ export const users = sqliteTable(
     externalId: text("external_id").notNull(),
     permissionLevel: text("permission_level").notNull(),
     username: text("username"),
+    groupLevel: text("group_level").notNull().default("Member"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
@@ -30,6 +31,10 @@ export const users = sqliteTable(
     check(
       "permission_level_check",
       sql`${table.permissionLevel} IN ('Viewer', 'Editor', 'Approver', 'Admin')`
+    ),
+    check(
+      "group_level_check",
+      sql`${table.groupLevel} IN ('Member', 'Non_Member', 'Team_Leader', 'Manager', 'Board_Member')`
     ),
   ]
 );
@@ -162,6 +167,21 @@ export const documentVisibility = sqliteTable(
 export const permissionAuditLog = sqliteTable("permission_audit_log", {
   id: text("id").primaryKey(),
   adminId: text("admin_id")
+    .notNull()
+    .references(() => users.id),
+  targetUserId: text("target_user_id")
+    .notNull()
+    .references(() => users.id),
+  oldLevel: text("old_level").notNull(),
+  newLevel: text("new_level").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+
+// ── Group Level Audit Log ─────────────────────────────────────────────
+
+export const groupLevelAuditLog = sqliteTable("group_level_audit_log", {
+  id: text("id").primaryKey(),
+  actingUserId: text("acting_user_id")
     .notNull()
     .references(() => users.id),
   targetUserId: text("target_user_id")

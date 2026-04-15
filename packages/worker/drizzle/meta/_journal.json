@@ -64,6 +64,13 @@
       "when": 1776500000000,
       "tag": "0008_add_tool_image",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1776600000000,
+      "tag": "0009_add_group_level",
+      "breakpoints": true
     }
   ]
 }

@@ -37,11 +37,30 @@ export function requireRole(minLevel: PermissionLevel) {
 }
 
 /**
+ * Returns Hono middleware that requires the user to be an Admin
+ * (by permissionLevel) or a Manager (by groupLevel).
+ *
+ * Used for routes that should admit both Admins and Managers,
+ * such as user listing, categories CRUD, import, tool/quiz/area CRUD, etc.
+ */
+export function requireAdminOrManager() {
+  return createMiddleware<Env>(async (c, next) => {
+    const session = c.get("session");
+    if (session.permissionLevel === "Admin" || session.groupLevel === "Manager") {
+      await next();
+      return;
+    }
+    return c.json({ error: "Insufficient permissions" }, 403);
+  });
+}
+
+/**
  * Returns Hono middleware that requires the user to be a trainer
  * (assigned to at least one tool via tool_trainers), an area leader,
  * or an Admin.
  *
  * Admins always pass the trainer check — they have implicit trainer access.
+ * Managers (by groupLevel) also bypass the trainer check.
  */
 export function requireTrainer() {
   return createMiddleware<Env>(async (c, next) => {
@@ -49,6 +68,12 @@ export function requireTrainer() {
 
     // Admins always pass
     if (session.permissionLevel === 'Admin') {
+      await next();
+      return;
+    }
+
+    // Managers always pass
+    if (session.groupLevel === "Manager") {
       await next();
       return;
     }

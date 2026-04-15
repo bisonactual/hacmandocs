@@ -177,6 +177,7 @@ describe('Property 18: Expired sessions are denied', () => {
             userId,
             authMethod,
             permissionLevel,
+            groupLevel: "Member",
             username: null,
             expiresAt: expiredAt,
           };

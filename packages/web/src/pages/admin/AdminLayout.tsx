@@ -1,39 +1,65 @@
-import { NavLink, Outlet, Navigate } from "react-router-dom";
+import { NavLink, Outlet, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 
-const sections = [
-  {
-    label: "General",
-    tabs: [
-      { to: "/admin/users", label: "Users" },
-    ],
-  },
-  {
-    label: "Docs Portal",
-    tabs: [
-      { to: "/admin/categories", label: "Categories" },
-      { to: "/admin/proposals", label: "Proposals" },
-      { to: "/admin/groups", label: "Visibility Groups" },
-      { to: "/admin/import", label: "Import" },
-      { to: "/admin/export", label: "Export" },
-    ],
-  },
-  {
-    label: "Training Portal",
-    tabs: [
-      { to: "/admin/areas", label: "Areas" },
-      { to: "/admin/tools", label: "Tools" },
-      { to: "/admin/quizzes", label: "Quizzes" },
-    ],
-  },
+const MANAGER_ALLOWED_ROUTES = [
+  "/admin/users",
+  "/admin/categories",
+  "/admin/proposals",
+  "/admin/import",
+  "/admin/export",
+  "/admin/areas",
+  "/admin/tools",
+  "/admin/quizzes",
 ];
 
 export default function AdminLayout() {
   const { user } = useAuth();
+  const location = useLocation();
 
-  if (user?.permissionLevel !== "Admin") {
+  const isAdmin = user?.permissionLevel === "Admin";
+  const isManager = user?.groupLevel === "Manager";
+
+  if (!isAdmin && !isManager) {
     return <Navigate to="/" replace />;
   }
+
+  // For Managers (non-Admin), enforce route allowlist
+  if (!isAdmin) {
+    const currentPath = location.pathname;
+    const isAllowed = MANAGER_ALLOWED_ROUTES.some(
+      (route) => currentPath === route || currentPath.startsWith(route + "/")
+    );
+    if (!isAllowed) {
+      return <Navigate to="/admin/users" replace />;
+    }
+  }
+
+  const sections = [
+    {
+      label: "General",
+      tabs: [
+        { to: "/admin/users", label: "Users" },
+      ],
+    },
+    {
+      label: "Docs Portal",
+      tabs: [
+        { to: "/admin/categories", label: "Categories" },
+        { to: "/admin/proposals", label: "Proposals" },
+        ...(isAdmin ? [{ to: "/admin/groups", label: "Visibility Groups" }] : []),
+        { to: "/admin/import", label: "Import" },
+        { to: "/admin/export", label: "Export" },
+      ],
+    },
+    {
+      label: "Training Portal",
+      tabs: [
+        { to: "/admin/areas", label: "Areas" },
+        { to: "/admin/tools", label: "Tools" },
+        { to: "/admin/quizzes", label: "Quizzes" },
+      ],
+    },
+  ];
 
   return (
     <div className="flex gap-8">

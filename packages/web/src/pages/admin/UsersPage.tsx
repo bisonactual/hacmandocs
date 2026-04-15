@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
-import type { PermissionLevel } from "@hacmandocs/shared";
+import { useAuth } from "../../hooks/useAuth";
+import type { PermissionLevel, GroupLevel } from "@hacmandocs/shared";
 
 interface UserRow {
   id: string;
@@ -8,9 +9,11 @@ interface UserRow {
   email: string;
   username: string | null;
   permissionLevel: PermissionLevel;
+  groupLevel: GroupLevel;
 }
 
 const levels: PermissionLevel[] = ["Viewer", "Editor", "Approver", "Admin"];
+const groupLevels: GroupLevel[] = ["Member", "Non_Member", "Team_Leader", "Manager", "Board_Member"];
 
 const levelDescriptions: Record<PermissionLevel, string> = {
   Viewer: "Can browse and read published documents. No editing or approval rights.",
@@ -19,9 +22,21 @@ const levelDescriptions: Record<PermissionLevel, string> = {
   Admin: "Full access — manage users, categories, visibility groups, tools, and all settings.",
 };
 
-const emptyForm = { name: "", email: "", username: "", permissionLevel: "Viewer" as string };
+const groupLevelDescriptions: Record<GroupLevel, string> = {
+  Member: "Standard hackspace member.",
+  Non_Member: "Non-member with limited access.",
+  Team_Leader: "Area team leader.",
+  Manager: "Full admin panel access with restrictions.",
+  Board_Member: "Board member (protected from Manager edits).",
+};
+
+const emptyForm = { name: "", email: "", username: "", permissionLevel: "Viewer" as string, groupLevel: "Member" as string };
 
 export default function UsersPage() {
+  const { user: authUser } = useAuth();
+  const isAdmin = authUser?.permissionLevel === "Admin";
+  const isManager = !isAdmin && authUser?.groupLevel === "Manager";
+
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
@@ -30,6 +45,18 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", username: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  /** A user is protected from Manager edits if ANY of these are true */
+  const isProtected = (u: UserRow) =>
+    u.permissionLevel === "Admin" || u.groupLevel === "Manager" || u.groupLevel === "Board_Member";
+
+  /** Permission options available based on caller role */
+  const permissionOptions = isManager ? levels.filter((l) => l !== "Admin") : levels;
+
+  /** Group level options available based on caller role */
+  const groupLevelOptions = isManager
+    ? groupLevels.filter((l) => l !== "Manager" && l !== "Board_Member")
+    : groupLevels;
 
   const load = () => {
     setLoading(true);
@@ -50,6 +77,16 @@ export default function UsersPage() {
     );
   };
 
+  const changeGroupLevel = async (userId: string, groupLevel: GroupLevel) => {
+    await apiFetch(`/api/users/${userId}/group-level`, {
+      method: "PUT",
+      body: JSON.stringify({ groupLevel }),
+    });
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, groupLevel } : u)),
+    );
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -61,6 +98,7 @@ export default function UsersPage() {
           email: form.email,
           username: form.username,
           permissionLevel: form.permissionLevel,
+          groupLevel: form.groupLevel,
         }),
       });
       setForm(emptyForm);
@@ -136,18 +174,40 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
-
-      <div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark"
-        >
-          {showForm ? "Cancel" : "Create User"}
-        </button>
+      {/* Group levels reference */}
+      <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-hacman-muted mb-3">Group Levels</h4>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {groupLevels.map((l) => (
+            <div key={l} className="flex items-start gap-2">
+              <span className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-xs font-medium ${
+                l === "Board_Member" ? "bg-yellow-500/20 text-yellow-400" :
+                l === "Manager" ? "bg-orange-500/20 text-orange-400" :
+                l === "Team_Leader" ? "bg-green-500/20 text-green-400" :
+                l === "Non_Member" ? "bg-gray-500/20 text-gray-400" :
+                "bg-gray-500/20 text-gray-400"
+              }`}>{l.replace("_", " ")}</span>
+              <span className="text-xs text-gray-400">{groupLevelDescriptions[l]}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {showForm && (
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {/* Create User — Admin only */}
+      {isAdmin && (
+        <div>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark"
+          >
+            {showForm ? "Cancel" : "Create User"}
+          </button>
+        </div>
+      )}
+
+      {isAdmin && showForm && (
         <form onSubmit={handleCreate} className="flex flex-wrap items-end gap-3 rounded-lg border border-hacman-gray p-4">
           <div>
             <label className="block text-xs text-hacman-muted">Name</label>
@@ -188,6 +248,18 @@ export default function UsersPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-xs text-hacman-muted">Group Level</label>
+            <select
+              value={form.groupLevel}
+              onChange={(e) => setForm({ ...form, groupLevel: e.target.value })}
+              className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
+            >
+              {groupLevels.map((l) => (
+                <option key={l} value={l}>{l.replace("_", " ")}</option>
+              ))}
+            </select>
+          </div>
           <button type="submit" className="rounded-lg bg-green-600 px-4 py-1.5 text-sm text-white hover:bg-green-700">
             Create
           </button>
@@ -201,11 +273,14 @@ export default function UsersPage() {
             <th className="py-2 pr-4">Username</th>
             <th className="py-2 pr-4">Email</th>
             <th className="py-2 pr-4">Permission</th>
+            <th className="py-2 pr-4">Group Level</th>
             <th className="py-2 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {users.map((u) => (
+          {users.map((u) => {
+            const userProtected = isManager && isProtected(u);
+            return (
             <tr key={u.id} className="border-b border-hacman-gray/50">
               {editingId === u.id ? (
                 <>
@@ -245,6 +320,21 @@ export default function UsersPage() {
                       ))}
                     </select>
                   </td>
+                  <td className="py-2 pr-4">
+                    <label htmlFor={`group-${u.id}`} className="sr-only">
+                      Group level for {u.name}
+                    </label>
+                    <select
+                      id={`group-${u.id}`}
+                      value={u.groupLevel}
+                      onChange={(e) => changeGroupLevel(u.id, e.target.value as GroupLevel)}
+                      className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
+                    >
+                      {groupLevels.map((l) => (
+                        <option key={l} value={l}>{l.replace("_", " ")}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td className="py-2 text-right">
                     <button
                       onClick={() => saveEdit(u.id)}
@@ -266,55 +356,91 @@ export default function UsersPage() {
                   <td className="py-2 pr-4 text-gray-400">{u.username ?? "—"}</td>
                   <td className="py-2 pr-4 text-gray-400">{u.email}</td>
                   <td className="py-2 pr-4">
-                    <label htmlFor={`perm-${u.id}`} className="sr-only">
-                      Permission level for {u.name}
-                    </label>
-                    <select
-                      id={`perm-${u.id}`}
-                      value={u.permissionLevel}
-                      onChange={(e) => changePermission(u.id, e.target.value as PermissionLevel)}
-                      className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
-                    >
-                      {levels.map((l) => (
-                        <option key={l} value={l}>{l}</option>
-                      ))}
-                    </select>
+                    {userProtected ? (
+                      <span className="text-sm text-gray-400">{u.permissionLevel}</span>
+                    ) : (
+                      <>
+                        <label htmlFor={`perm-${u.id}`} className="sr-only">
+                          Permission level for {u.name}
+                        </label>
+                        <select
+                          id={`perm-${u.id}`}
+                          value={u.permissionLevel}
+                          onChange={(e) => changePermission(u.id, e.target.value as PermissionLevel)}
+                          className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
+                        >
+                          {permissionOptions.map((l) => (
+                            <option key={l} value={l}>{l}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4">
+                    {userProtected ? (
+                      <span className="text-sm text-gray-400">{u.groupLevel.replace("_", " ")}</span>
+                    ) : (
+                      <>
+                        <label htmlFor={`group-${u.id}`} className="sr-only">
+                          Group level for {u.name}
+                        </label>
+                        <select
+                          id={`group-${u.id}`}
+                          value={u.groupLevel}
+                          onChange={(e) => changeGroupLevel(u.id, e.target.value as GroupLevel)}
+                          className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow"
+                        >
+                          {groupLevelOptions.map((l) => (
+                            <option key={l} value={l}>{l.replace("_", " ")}</option>
+                          ))}
+                        </select>
+                      </>
+                    )}
                   </td>
                   <td className="py-2 text-right">
-                    <button
-                      onClick={() => startEdit(u)}
-                      className="mr-2 rounded bg-gray-600 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-500"
-                    >
-                      Edit
-                    </button>
-                    {deleteConfirm === u.id ? (
-                      <>
-                        <button
-                          onClick={() => handleDelete(u.id)}
-                          className="mr-1 rounded bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm(null)}
-                          className="rounded bg-gray-600 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-500"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
+                    {/* Profile edit — Admin only */}
+                    {isAdmin && (
                       <button
-                        onClick={() => setDeleteConfirm(u.id)}
-                        className="rounded bg-red-600/20 px-2.5 py-1 text-xs text-red-400 hover:bg-red-600/40"
+                        onClick={() => startEdit(u)}
+                        className="mr-2 rounded bg-gray-600 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-500"
                       >
-                        Delete
+                        Edit
                       </button>
+                    )}
+                    {/* Delete — Admin only */}
+                    {isAdmin && (
+                      <>
+                        {deleteConfirm === u.id ? (
+                          <>
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              className="mr-1 rounded bg-red-600 px-2.5 py-1 text-xs text-white hover:bg-red-700"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirm(null)}
+                              className="rounded bg-gray-600 px-2.5 py-1 text-xs text-gray-200 hover:bg-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(u.id)}
+                            className="rounded bg-red-600/20 px-2.5 py-1 text-xs text-red-400 hover:bg-red-600/40"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </>
                     )}
                   </td>
                 </>
               )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>

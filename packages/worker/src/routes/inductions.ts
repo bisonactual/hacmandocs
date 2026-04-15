@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq, and, lte, gt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole } from "../middleware/rbac";
+import { requireRole, requireAdminOrManager } from "../middleware/rbac";
 import { requireTrainer } from "../middleware/rbac";
 import {
   users,
@@ -40,7 +40,7 @@ inductionsApp.get("/tools", async (c) => {
 /**
  * POST /tools — Create a tool record (Admin only).
  */
-inductionsApp.post("/tools", requireRole("Admin"), async (c) => {
+inductionsApp.post("/tools", requireAdminOrManager(), async (c) => {
   const body = await c.req.json<{
     name?: string;
     imageUrl?: string | null;
@@ -89,7 +89,7 @@ inductionsApp.post("/tools", requireRole("Admin"), async (c) => {
  * PUT /tools/:id — Update a tool record (Admin only).
  * Recalculates cert expiry if retraining interval changed.
  */
-inductionsApp.put("/tools/:id", requireRole("Admin"), async (c) => {
+inductionsApp.put("/tools/:id", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{
     name?: string;
@@ -200,7 +200,7 @@ inductionsApp.put("/tools/:id", requireRole("Admin"), async (c) => {
 /**
  * DELETE /tools/:id — Delete a tool record (Admin only).
  */
-inductionsApp.delete("/tools/:id", requireRole("Admin"), async (c) => {
+inductionsApp.delete("/tools/:id", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 
@@ -248,7 +248,7 @@ interface ImportQuiz {
 /**
  * POST /quizzes/import — Import quiz(zes) from JSON (Admin only).
  */
-inductionsApp.post("/quizzes/import", requireRole("Admin"), async (c) => {
+inductionsApp.post("/quizzes/import", requireAdminOrManager(), async (c) => {
   const body = await c.req.json<ImportQuiz | { quizzes: ImportQuiz[] }>();
 
   const quizInputs: ImportQuiz[] =
@@ -341,7 +341,7 @@ inductionsApp.get("/quizzes/:id", async (c) => {
 /**
  * POST /quizzes — Create a quiz (Admin only).
  */
-inductionsApp.post("/quizzes", requireRole("Admin"), async (c) => {
+inductionsApp.post("/quizzes", requireAdminOrManager(), async (c) => {
   const body = await c.req.json<{ title?: string; description?: string; showWrongAnswers?: boolean }>();
 
   if (!body.title || !body.title.trim()) {
@@ -374,7 +374,7 @@ inductionsApp.post("/quizzes", requireRole("Admin"), async (c) => {
 /**
  * PUT /quizzes/:id — Update quiz title/description (Admin only).
  */
-inductionsApp.put("/quizzes/:id", requireRole("Admin"), async (c) => {
+inductionsApp.put("/quizzes/:id", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{ title?: string; description?: string; showWrongAnswers?: boolean }>();
 
@@ -424,7 +424,7 @@ inductionsApp.put("/quizzes/:id", requireRole("Admin"), async (c) => {
  * POST /quizzes/:id/publish — Publish a quiz (Admin only).
  * Rejects if the quiz has zero questions.
  */
-inductionsApp.post("/quizzes/:id/publish", requireRole("Admin"), async (c) => {
+inductionsApp.post("/quizzes/:id/publish", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 
@@ -472,7 +472,7 @@ inductionsApp.post("/quizzes/:id/publish", requireRole("Admin"), async (c) => {
 /**
  * POST /quizzes/:id/archive — Archive a quiz (Admin only).
  */
-inductionsApp.post("/quizzes/:id/archive", requireRole("Admin"), async (c) => {
+inductionsApp.post("/quizzes/:id/archive", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 
@@ -538,7 +538,7 @@ inductionsApp.get("/quizzes/:id/questions", async (c) => {
  */
 inductionsApp.post(
   "/quizzes/:id/questions",
-  requireRole("Admin"),
+  requireAdminOrManager(),
   async (c) => {
     const quizId = c.req.param("id");
     const body = await c.req.json<{
@@ -609,7 +609,7 @@ inductionsApp.post(
  */
 inductionsApp.put(
   "/quizzes/:quizId/questions/:questionId",
-  requireRole("Admin"),
+  requireAdminOrManager(),
   async (c) => {
     const quizId = c.req.param("quizId");
     const questionId = c.req.param("questionId");
@@ -704,7 +704,7 @@ inductionsApp.put(
  */
 inductionsApp.delete(
   "/quizzes/:quizId/questions/:questionId",
-  requireRole("Admin"),
+  requireAdminOrManager(),
   async (c) => {
     const quizId = c.req.param("quizId");
     const questionId = c.req.param("questionId");
@@ -1731,7 +1731,7 @@ inductionsApp.post("/trainer/tools/:toolId/mark-trained/:userId", requireTrainer
   }
 
   // Verify trainer has access to this tool
-  if (session.permissionLevel !== "Admin") {
+  if (session.permissionLevel !== "Admin" && session.groupLevel !== "Manager") {
     let hasAccess = false;
     if (tool.areaId) {
       const [leader] = await db
@@ -1820,7 +1820,7 @@ inductionsApp.post("/signoff", requireTrainer(), async (c) => {
   }
 
   // Verify trainer has access to this tool (Admin, area leader, or assigned trainer)
-  if (session.permissionLevel !== "Admin") {
+  if (session.permissionLevel !== "Admin" && session.groupLevel !== "Manager") {
     let hasAccess = false;
 
     // Check area leader
@@ -2035,7 +2035,7 @@ inductionsApp.get("/areas", async (c) => {
 /**
  * POST /areas — Create a tool area (Admin only).
  */
-inductionsApp.post("/areas", requireRole("Admin"), async (c) => {
+inductionsApp.post("/areas", requireAdminOrManager(), async (c) => {
   const body = await c.req.json<{ name?: string }>();
 
   if (!body.name || !body.name.trim()) {
@@ -2105,7 +2105,7 @@ inductionsApp.put("/areas/:id", requireAreaAccess("id"), async (c) => {
 /**
  * DELETE /areas/:id — Delete a tool area (Admin only).
  */
-inductionsApp.delete("/areas/:id", requireRole("Admin"), async (c) => {
+inductionsApp.delete("/areas/:id", requireAdminOrManager(), async (c) => {
   const areaId = c.req.param("id");
   const db = drizzle(c.env.DB);
 
@@ -2160,7 +2160,7 @@ inductionsApp.get("/areas/:id/leaders", async (c) => {
  * PUT /areas/:id/leaders — Set leaders for an area (Admin only).
  * Accepts { userIds: string[] }. Replaces all current leaders.
  */
-inductionsApp.put("/areas/:id/leaders", requireRole("Admin"), async (c) => {
+inductionsApp.put("/areas/:id/leaders", requireAdminOrManager(), async (c) => {
   const areaId = c.req.param("id");
   const body = await c.req.json<{ userIds?: string[] }>();
   const db = drizzle(c.env.DB);
@@ -2268,8 +2268,8 @@ inductionsApp.get("/trainer/my-tools", requireTrainer(), async (c) => {
   const session = c.get("session");
   const db = drizzle(c.env.DB);
 
-  // Admins see everything
-  if (session.permissionLevel === "Admin") {
+  // Admins and Managers see everything
+  if (session.permissionLevel === "Admin" || session.groupLevel === "Manager") {
     const rows = await db.select().from(toolRecords);
     return c.json(rows);
   }
