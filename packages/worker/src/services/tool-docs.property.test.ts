@@ -18,7 +18,7 @@ const quizDescriptionArb = fc.option(fc.string({ minLength: 1, maxLength: 200 })
 /** A random user-authored paragraph node */
 const userParagraphNodeArb: fc.Arbitrary<DocumentNode> = fc.record({
   type: fc.constant('paragraph'),
-  content: fc.constant([{ type: 'text', text: '' }]).chain((defaultContent) =>
+  content: fc.constant([{ type: 'text', text: '' }]).chain((_defaultContent) =>
     fc.string({ minLength: 0, maxLength: 100 }).map((text) => [{ type: 'text' as const, text }]),
   ),
 });
