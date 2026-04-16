@@ -10,12 +10,118 @@ interface SearchResult {
   lastModified: number;
 }
 
+interface CategoryItem {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+}
+
+interface DocumentItem {
+  id: string;
+  title: string;
+  categoryId: string | null;
+}
+
 function formatDate(epoch: number): string {
   return new Date(epoch * 1000).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+}
+
+function BrowseView() {
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch<CategoryItem[]>("/api/categories"),
+      apiFetch<DocumentItem[]>("/api/documents"),
+    ])
+      .then(([cats, docs]) => { setCategories(cats); setDocuments(docs); })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" />
+        <span className="text-hacman-muted">Loading…</span>
+      </div>
+    );
+  }
+
+  // Group documents by category
+  const docsByCategory = new Map<string, DocumentItem[]>();
+  const uncategorized: DocumentItem[] = [];
+  for (const doc of documents) {
+    if (doc.categoryId) {
+      const list = docsByCategory.get(doc.categoryId) ?? [];
+      list.push(doc);
+      docsByCategory.set(doc.categoryId, list);
+    } else {
+      uncategorized.push(doc);
+    }
+  }
+
+  const roots = categories
+    .filter((c) => !c.parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+
+  return (
+    <div className="space-y-6">
+      {roots.map((cat) => {
+        const docs = docsByCategory.get(cat.id) ?? [];
+        const children = categories
+          .filter((c) => c.parentId === cat.id)
+          .sort((a, b) => a.sortOrder - b.sortOrder);
+        if (docs.length === 0 && children.length === 0) return null;
+        return (
+          <div key={cat.id}>
+            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-hacman-muted">{cat.name}</h3>
+            <ul className="space-y-1">
+              {docs.map((d) => (
+                <li key={d.id}>
+                  <Link to={`/documents/${d.id}`} className="text-hacman-yellow hover:underline">{d.title}</Link>
+                </li>
+              ))}
+              {children.map((child) => {
+                const childDocs = docsByCategory.get(child.id) ?? [];
+                if (childDocs.length === 0) return null;
+                return (
+                  <li key={child.id} className="ml-4 mt-2">
+                    <p className="text-xs font-medium text-gray-400">{child.name}</p>
+                    <ul className="mt-1 space-y-1">
+                      {childDocs.map((d) => (
+                        <li key={d.id}>
+                          <Link to={`/documents/${d.id}`} className="text-hacman-yellow hover:underline">{d.title}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })}
+      {uncategorized.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-hacman-muted">Uncategorized</h3>
+          <ul className="space-y-1">
+            {uncategorized.map((d) => (
+              <li key={d.id}>
+                <Link to={`/documents/${d.id}`} className="text-hacman-yellow hover:underline">{d.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function SearchPage() {
@@ -38,10 +144,20 @@ export default function SearchPage() {
       .finally(() => setLoading(false));
   }, [query]);
 
+  // No query — show browsable categories
+  if (!query.trim()) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <h2 className="mb-4 text-xl font-semibold text-white">Browse Documentation</h2>
+        <BrowseView />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
       <h2 className="mb-4 text-xl font-semibold text-white">
-        Search results{query ? ` for "${query}"` : ""}
+        Search results for "{query}"
       </h2>
 
       {loading && (
@@ -52,7 +168,7 @@ export default function SearchPage() {
       )}
       {error && <p className="text-red-400">{error}</p>}
 
-      {!loading && !error && results.length === 0 && query && (
+      {!loading && !error && results.length === 0 && (
         <p className="text-hacman-muted">No documents matched your query.</p>
       )}
 
