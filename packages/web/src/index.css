@@ -9,6 +9,13 @@
   --color-hacman-dark: #1A1A1A;
   --color-hacman-gray: #2A2A2A;
   --color-hacman-muted: #9CA3AF;
+
+  --animate-slide-in-left: slide-in-left 0.2s ease-out;
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
 }
 
 /* Scrollbar styling */

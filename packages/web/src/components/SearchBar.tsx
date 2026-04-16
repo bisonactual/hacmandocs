@@ -37,7 +37,7 @@ export default function SearchBar() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search docs…"
-          className="w-48 rounded-md border border-hacman-gray bg-hacman-black pl-8 pr-3 py-1.5 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow transition-colors"
+          className="w-36 rounded-md border border-hacman-gray bg-hacman-black pl-8 pr-3 py-1.5 text-sm text-gray-200 placeholder-hacman-muted focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow transition-colors md:w-48"
         />
       </div>
     </form>

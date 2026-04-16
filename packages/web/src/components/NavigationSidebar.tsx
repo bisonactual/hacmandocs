@@ -83,7 +83,7 @@ function buildTree(
   return { tree: roots, uncategorized, privateTree: privateRoots, privateDocs };
 }
 
-function CategoryTreeNode({ node }: { node: CategoryNode }) {
+function CategoryTreeNode({ node, onNavigate }: { node: CategoryNode; onNavigate?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const hasChildren = node.children.length > 0 || node.documents.length > 0;
 
@@ -104,12 +104,13 @@ function CategoryTreeNode({ node }: { node: CategoryNode }) {
       {expanded && (
         <ul className="ml-4 mt-0.5 space-y-0.5 border-l border-hacman-gray pl-2">
           {node.children.map((child) => (
-            <CategoryTreeNode key={child.id} node={child} />
+            <CategoryTreeNode key={child.id} node={child} onNavigate={onNavigate} />
           ))}
           {node.documents.map((doc) => (
             <li key={doc.id}>
               <NavLink
                 to={`/documents/${doc.id}`}
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                     isActive
@@ -131,7 +132,7 @@ function CategoryTreeNode({ node }: { node: CategoryNode }) {
   );
 }
 
-function PrivateDocsSection({ privateTree, privateDocs }: { privateTree: CategoryNode[]; privateDocs: DocumentItem[] }) {
+function PrivateDocsSection({ privateTree, privateDocs, onNavigate }: { privateTree: CategoryNode[]; privateDocs: DocumentItem[]; onNavigate?: () => void }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -149,12 +150,13 @@ function PrivateDocsSection({ privateTree, privateDocs }: { privateTree: Categor
       {expanded && (
         <ul className="mt-0.5 space-y-0.5">
           {privateTree.map((node) => (
-            <CategoryTreeNode key={node.id} node={node} />
+            <CategoryTreeNode key={node.id} node={node} onNavigate={onNavigate} />
           ))}
           {privateDocs.map((doc) => (
             <li key={doc.id}>
               <NavLink
                 to={`/documents/${doc.id}`}
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                     isActive
@@ -173,7 +175,7 @@ function PrivateDocsSection({ privateTree, privateDocs }: { privateTree: Categor
   );
 }
 
-export default function NavigationSidebar() {
+export default function NavigationSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,7 +235,7 @@ export default function NavigationSidebar() {
         ) : (
           <ul className="space-y-0.5">
             {tree.map((node) => (
-              <CategoryTreeNode key={node.id} node={node} />
+              <CategoryTreeNode key={node.id} node={node} onNavigate={onNavigate} />
             ))}
             {uncategorized.length > 0 && (
               <li>
@@ -245,6 +247,7 @@ export default function NavigationSidebar() {
                     <li key={doc.id}>
                       <NavLink
                         to={`/documents/${doc.id}`}
+                        onClick={onNavigate}
                         className={({ isActive }) =>
                           `flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
                             isActive
@@ -270,7 +273,7 @@ export default function NavigationSidebar() {
       {/* Private Docs section — only shown if user has access to private categories */}
       {hasPrivateContent && (
         <div className="border-t border-hacman-gray p-2">
-          <PrivateDocsSection privateTree={privateTree} privateDocs={privateDocs} />
+          <PrivateDocsSection privateTree={privateTree} privateDocs={privateDocs} onNavigate={onNavigate} />
         </div>
       )}
 
@@ -284,6 +287,7 @@ export default function NavigationSidebar() {
             <li>
               <NavLink
                 to="/inductions/profile"
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                     isActive
@@ -299,6 +303,7 @@ export default function NavigationSidebar() {
             <li>
               <NavLink
                 to="/inductions/trainer"
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                     isActive
@@ -314,6 +319,7 @@ export default function NavigationSidebar() {
             <li>
               <NavLink
                 to="/leaderboard"
+                onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                     isActive
@@ -335,6 +341,7 @@ export default function NavigationSidebar() {
         <div className="border-t border-hacman-gray p-2">
           <NavLink
             to="/admin"
+            onClick={onNavigate}
             className={({ isActive }) =>
               `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 isActive
