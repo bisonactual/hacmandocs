@@ -7,6 +7,7 @@ import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
+import { Node, mergeAttributes } from "@tiptap/core";
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import type { DocumentNode } from "@hacmandocs/shared";
 
@@ -93,6 +94,136 @@ export function resolveImageUrl(url: string, apiBase: string): string {
   const relative = url.startsWith("/") ? url : `/${url}`;
   return `${base}${relative}`;
 }
+
+// ── Custom TipTap Node: trainingLink ─────────────────────────────────
+// Atom node that renders a read-only navigable link back to the tool's
+// training profile entry. Not editable inline.
+const TrainingLinkNode = Node.create({
+  name: "trainingLink",
+  group: "block",
+  atom: true,
+
+  addAttributes() {
+    return {
+      toolId: { default: null },
+      toolName: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'div[data-type="training-link"]' }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const toolId = node.attrs.toolId as string;
+    const toolName = node.attrs.toolName as string;
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "training-link",
+        "contenteditable": "false",
+        class:
+          "rounded-lg border border-hacman-yellow/30 bg-hacman-yellow/10 px-4 py-2 text-sm my-2",
+      }),
+      [
+        "a",
+        {
+          href: `/inductions/profile#tool-${toolId}`,
+          class: "text-hacman-yellow hover:underline",
+        },
+        `View training status for ${toolName}`,
+      ],
+    ];
+  },
+});
+
+// ── Custom TipTap Node: details ──────────────────────────────────────
+// Collapsible <details> element. When data-system-managed is true the
+// content is rendered non-editable with a visual "System managed" label.
+const DetailsNode = Node.create({
+  name: "details",
+  group: "block",
+  content: "detailsSummary block+",
+
+  addAttributes() {
+    return {
+      "data-system-managed": { default: false },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: "details",
+        getAttrs(dom) {
+          const el = dom as HTMLElement;
+          return {
+            "data-system-managed":
+              el.getAttribute("data-system-managed") === "true",
+          };
+        },
+      },
+    ];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const isSystemManaged = node.attrs["data-system-managed"] === true;
+    const attrs: Record<string, string> = {
+      ...mergeAttributes(HTMLAttributes),
+    };
+
+    if (isSystemManaged) {
+      attrs["data-system-managed"] = "true";
+      attrs["contenteditable"] = "false";
+      attrs["class"] =
+        "border border-hacman-gray rounded-lg p-3 bg-hacman-dark/50 my-2 relative";
+    } else {
+      attrs["class"] = "border border-hacman-gray rounded-lg p-3 my-2";
+    }
+
+    if (isSystemManaged) {
+      return [
+        "details",
+        attrs,
+        [
+          "span",
+          {
+            class:
+              "absolute top-1 right-2 text-xs text-gray-500 select-none pointer-events-none",
+            contenteditable: "false",
+          },
+          "🔒 System managed",
+        ],
+        0, // hole for child content
+      ];
+    }
+
+    return ["details", attrs, 0];
+  },
+});
+
+// ── Custom TipTap Node: detailsSummary ───────────────────────────────
+// Renders as a <summary> element inside a <details> block.
+const DetailsSummaryNode = Node.create({
+  name: "detailsSummary",
+  group: "block",
+  content: "inline*",
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: "summary" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "summary",
+      mergeAttributes(HTMLAttributes, {
+        class: "cursor-pointer font-medium text-gray-300",
+      }),
+      0,
+    ];
+  },
+});
 
 function TableSizePicker({
   editor,
@@ -361,6 +492,9 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       TableRow,
       TableCell,
       TableHeader,
+      TrainingLinkNode,
+      DetailsNode,
+      DetailsSummaryNode,
     ];
 
     const editor = useEditor({

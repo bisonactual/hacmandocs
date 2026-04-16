@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, lte, gt } from "drizzle-orm";
+import { eq, and, or, lte, gt, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireAdminOrManager } from "../middleware/rbac";
@@ -17,12 +17,14 @@ import {
   toolAreas,
   toolTrainers,
   areaLeaders,
+  documents,
 } from "../db/schema";
 import { validateToolRecord, validateQuestion, partitionMemberTools } from "../services/induction-validators";
 import { recalculateExpiry, createCertification, getCertificationStatus } from "../services/certification";
 import { scoreAttempt } from "../services/quiz-scoring";
 import { validateSignoff, validateChecklistSection, validateChecklistItem } from "../services/signoff-validators";
 import { requireToolAccess, requireAreaAccess } from "../middleware/tool-access";
+import { ensureDocsPage, syncRename, releaseDocsPage, syncDescription } from "../services/tool-docs";
 
 const inductionsApp = new Hono<Env>();
 
@@ -49,6 +51,7 @@ inductionsApp.post("/tools", requireAdminOrManager(), async (c) => {
     refresherQuizId?: string | null;
     retrainingIntervalDays?: number | null;
     areaId?: string | null;
+    noInductionNeeded?: boolean;
   }>();
 
   const validation = validateToolRecord(body);
@@ -58,10 +61,11 @@ inductionsApp.post("/tools", requireAdminOrManager(), async (c) => {
 
   const db = drizzle(c.env.DB);
   const now = Math.floor(Date.now() / 1000);
+  const toolId = crypto.randomUUID();
 
   try {
     await db.insert(toolRecords).values({
-      id: crypto.randomUUID(),
+      id: toolId,
       name: body.name!.trim(),
       imageUrl: body.imageUrl ?? null,
       quizId: body.quizId ?? null,
@@ -69,6 +73,7 @@ inductionsApp.post("/tools", requireAdminOrManager(), async (c) => {
       refresherQuizId: body.refresherQuizId ?? null,
       retrainingIntervalDays: body.retrainingIntervalDays ?? null,
       areaId: body.areaId ?? null,
+      noInductionNeeded: body.noInductionNeeded ? 1 : 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -80,6 +85,35 @@ inductionsApp.post("/tools", requireAdminOrManager(), async (c) => {
       );
     }
     throw err;
+  }
+
+  // Auto-create docs page (non-blocking)
+  try {
+    let quizDescription: string | null = null;
+    if (body.quizId) {
+      const [quiz] = await db
+        .select({ description: quizzes.description })
+        .from(quizzes)
+        .where(eq(quizzes.id, body.quizId))
+        .limit(1);
+      quizDescription = quiz?.description ?? null;
+    }
+    const session = c.get("session");
+    const docPageId = await ensureDocsPage({
+      db: c.env.DB,
+      toolId,
+      toolName: body.name!.trim(),
+      quizDescription,
+      createdBy: session.userId,
+    });
+    if (docPageId) {
+      await db
+        .update(toolRecords)
+        .set({ docPageId, updatedAt: Math.floor(Date.now() / 1000) })
+        .where(eq(toolRecords.id, toolId));
+    }
+  } catch (err) {
+    console.error("[tool-docs] Failed to create docs page during tool creation:", err);
   }
 
   return c.json({ success: true }, 201);
@@ -99,6 +133,7 @@ inductionsApp.put("/tools/:id", requireAdminOrManager(), async (c) => {
     refresherQuizId?: string | null;
     retrainingIntervalDays?: number | null;
     areaId?: string | null;
+    noInductionNeeded?: boolean;
   }>();
 
   const db = drizzle(c.env.DB);
@@ -125,6 +160,7 @@ inductionsApp.put("/tools/:id", requireAdminOrManager(), async (c) => {
         ? body.retrainingIntervalDays
         : existing.retrainingIntervalDays,
     areaId: body.areaId !== undefined ? body.areaId : existing.areaId,
+    noInductionNeeded: body.noInductionNeeded !== undefined ? body.noInductionNeeded : (existing.noInductionNeeded === 1),
   };
 
   const validation = validateToolRecord(merged);
@@ -145,6 +181,7 @@ inductionsApp.put("/tools/:id", requireAdminOrManager(), async (c) => {
         refresherQuizId: merged.refresherQuizId,
         retrainingIntervalDays: merged.retrainingIntervalDays,
         areaId: merged.areaId,
+        noInductionNeeded: merged.noInductionNeeded ? 1 : 0,
         updatedAt: now,
       })
       .where(eq(toolRecords.id, id));
@@ -188,6 +225,19 @@ inductionsApp.put("/tools/:id", requireAdminOrManager(), async (c) => {
     }
   }
 
+  // Sync docs page rename if name changed and page is linked
+  if (merged.name.trim() !== existing.name && existing.docPageId) {
+    try {
+      await syncRename({
+        db: c.env.DB,
+        docPageId: existing.docPageId,
+        newToolName: merged.name.trim(),
+      });
+    } catch (err) {
+      console.error("[tool-docs] Failed to sync rename for tool docs page:", err);
+    }
+  }
+
   const [updated] = await db
     .select()
     .from(toolRecords)
@@ -214,8 +264,67 @@ inductionsApp.delete("/tools/:id", requireAdminOrManager(), async (c) => {
     return c.json({ error: "Tool record not found." }, 404);
   }
 
+  // Release docs page before deleting tool record
+  try {
+    await releaseDocsPage({
+      db: c.env.DB,
+      toolId: id,
+      docPageId: existing.docPageId,
+    });
+  } catch (err) {
+    console.error("[tool-docs] Failed to release docs page during tool deletion:", err);
+  }
+
   await db.delete(toolRecords).where(eq(toolRecords.id, id));
   return c.json({ success: true });
+});
+
+/**
+ * POST /tools/:id/repair-link — Re-run ensureDocsPage for a tool (Admin/Manager only).
+ */
+inductionsApp.post("/tools/:id/repair-link", requireAdminOrManager(), async (c) => {
+  const id = c.req.param("id");
+  const db = drizzle(c.env.DB);
+
+  const [tool] = await db
+    .select()
+    .from(toolRecords)
+    .where(eq(toolRecords.id, id))
+    .limit(1);
+
+  if (!tool) {
+    return c.json({ error: "Tool record not found." }, 404);
+  }
+
+  try {
+    let quizDescription: string | null = null;
+    if (tool.quizId) {
+      const [quiz] = await db
+        .select({ description: quizzes.description })
+        .from(quizzes)
+        .where(eq(quizzes.id, tool.quizId))
+        .limit(1);
+      quizDescription = quiz?.description ?? null;
+    }
+    const session = c.get("session");
+    const docPageId = await ensureDocsPage({
+      db: c.env.DB,
+      toolId: id,
+      toolName: tool.name,
+      quizDescription,
+      createdBy: session.userId,
+    });
+    if (docPageId) {
+      await db
+        .update(toolRecords)
+        .set({ docPageId, updatedAt: Math.floor(Date.now() / 1000) })
+        .where(eq(toolRecords.id, id));
+    }
+    return c.json({ docPageId });
+  } catch (err) {
+    console.error("[tool-docs] repair-link failed:", err);
+    return c.json({ error: "Failed to repair docs link." }, 500);
+  }
 });
 
 // ── Quiz CRUD ────────────────────────────────────────────────────────
@@ -410,6 +519,39 @@ inductionsApp.put("/quizzes/:id", requireAdminOrManager(), async (c) => {
   }
 
   await db.update(quizzes).set(updates).where(eq(quizzes.id, id));
+
+  // Sync description to all linked tool docs pages if description changed
+  if (body.description !== undefined) {
+    try {
+      const linkedTools = await db
+        .select({ id: toolRecords.id, docPageId: toolRecords.docPageId })
+        .from(toolRecords)
+        .where(
+          and(
+            isNotNull(toolRecords.docPageId),
+            or(
+              eq(toolRecords.quizId, id),
+              eq(toolRecords.preInductionQuizId, id),
+              eq(toolRecords.refresherQuizId, id),
+            ),
+          ),
+        );
+
+      for (const tool of linkedTools) {
+        try {
+          await syncDescription({
+            db: c.env.DB,
+            docPageId: tool.docPageId!,
+            quizDescription: body.description ?? null,
+          });
+        } catch (err) {
+          console.error(`[tool-docs] Failed to sync description for tool ${tool.id}, page ${tool.docPageId}:`, err);
+        }
+      }
+    } catch (err) {
+      console.error("[tool-docs] Failed to find linked tools for quiz description sync:", err);
+    }
+  }
 
   const [updated] = await db
     .select()
@@ -981,14 +1123,37 @@ inductionsApp.get("/attempts/me", async (c) => {
 });
 
 /**
- * GET /profile/me — Get member profile data (available, completed, expired tools).
+ * GET /profile/me — Get member profile data (available, completed, expired, noInductionNeeded tools).
  */
 inductionsApp.get("/profile/me", async (c) => {
   const session = c.get("session");
   const db = drizzle(c.env.DB);
   const now = Math.floor(Date.now() / 1000);
 
-  const allToolRecords = await db.select().from(toolRecords);
+  // Left-join documents to get isPublished for each tool's docPageId
+  const allToolRows = await db
+    .select({
+      id: toolRecords.id,
+      name: toolRecords.name,
+      imageUrl: toolRecords.imageUrl,
+      quizId: toolRecords.quizId,
+      preInductionQuizId: toolRecords.preInductionQuizId,
+      refresherQuizId: toolRecords.refresherQuizId,
+      retrainingIntervalDays: toolRecords.retrainingIntervalDays,
+      areaId: toolRecords.areaId,
+      docPageId: toolRecords.docPageId,
+      noInductionNeeded: toolRecords.noInductionNeeded,
+      createdAt: toolRecords.createdAt,
+      updatedAt: toolRecords.updatedAt,
+      docIsPublished: documents.isPublished,
+    })
+    .from(toolRecords)
+    .leftJoin(documents, eq(toolRecords.docPageId, documents.id));
+
+  // Fetch all tool areas for areaId → areaName mapping
+  const allAreas = await db.select().from(toolAreas);
+  const areaMap = new Map(allAreas.map((a) => [a.id, a.name]));
+
   const userCerts = await db
     .select()
     .from(certifications)
@@ -1000,19 +1165,36 @@ inductionsApp.get("/profile/me", async (c) => {
     .from(quizAttempts)
     .where(and(eq(quizAttempts.userId, session.userId), eq(quizAttempts.passed, 1)));
 
+  // Build a lookup from tool id to the extra fields (docPageId, docPagePublished, noInductionNeeded, areaName)
+  const toolExtras = new Map(
+    allToolRows.map((tr) => [
+      tr.id,
+      {
+        docPageId: tr.docPageId,
+        docPagePublished: tr.docIsPublished === 1,
+        noInductionNeeded: tr.noInductionNeeded === 1,
+        areaId: tr.areaId,
+        areaName: tr.areaId ? (areaMap.get(tr.areaId) ?? null) : null,
+      },
+    ]),
+  );
+
+  // Build tool records in the shape partitionMemberTools expects
+  const toolRecordsForPartition = allToolRows.map((tr) => ({
+    id: tr.id,
+    name: tr.name,
+    imageUrl: tr.imageUrl,
+    quizId: tr.quizId,
+    preInductionQuizId: tr.preInductionQuizId,
+    refresherQuizId: tr.refresherQuizId,
+    retrainingIntervalDays: tr.retrainingIntervalDays,
+    areaId: tr.areaId,
+    createdAt: tr.createdAt,
+    updatedAt: tr.updatedAt,
+  }));
+
   const partition = partitionMemberTools(
-    allToolRecords.map((tr) => ({
-      id: tr.id,
-      name: tr.name,
-      imageUrl: tr.imageUrl,
-      quizId: tr.quizId,
-      preInductionQuizId: tr.preInductionQuizId,
-      refresherQuizId: tr.refresherQuizId,
-      retrainingIntervalDays: tr.retrainingIntervalDays,
-      areaId: tr.areaId,
-      createdAt: tr.createdAt,
-      updatedAt: tr.updatedAt,
-    })),
+    toolRecordsForPartition,
     userCerts.map((cert) => ({
       id: cert.id,
       userId: cert.userId,
@@ -1036,8 +1218,29 @@ inductionsApp.get("/profile/me", async (c) => {
   // Build set of passed quiz IDs for pre-induction status
   const passedQuizIds = new Set(userAttempts.map((a) => a.quizId));
 
+  // Set of tool IDs that have certifications (for noInductionNeeded filtering)
+  const toolIdsWithCerts = new Set(userCerts.map((c) => c.toolRecordId));
+
+  // Separate noInductionNeeded tools from the available list
+  const noInductionNeededTools = partition.available.filter(
+    (t) => toolExtras.get(t.id)?.noInductionNeeded && !toolIdsWithCerts.has(t.id),
+  );
+  const noInductionIds = new Set(noInductionNeededTools.map((t) => t.id));
+  const availableTools = partition.available.filter((t) => !noInductionIds.has(t.id));
+
+  const enrichTool = (t: { id: string }) => {
+    const extras = toolExtras.get(t.id);
+    return {
+      docPageId: extras?.docPageId ?? null,
+      docPagePublished: extras?.docPagePublished ?? false,
+      noInductionNeeded: extras?.noInductionNeeded ?? false,
+      areaId: extras?.areaId ?? null,
+      areaName: extras?.areaName ?? null,
+    };
+  };
+
   return c.json({
-    available: partition.available.map((t) => ({
+    available: availableTools.map((t) => ({
       id: t.id,
       name: t.name,
       quizId: t.quizId,
@@ -1045,6 +1248,7 @@ inductionsApp.get("/profile/me", async (c) => {
       refresherQuizId: t.refresherQuizId,
       retrainingIntervalDays: t.retrainingIntervalDays,
       passedPreInduction: t.preInductionQuizId ? passedQuizIds.has(t.preInductionQuizId) : false,
+      ...enrichTool(t),
     })),
     completed: partition.completed.map((t) => {
       const certs = certsByTool.get(t.id) ?? [];
@@ -1066,6 +1270,7 @@ inductionsApp.get("/profile/me", async (c) => {
               ),
             }
           : null,
+        ...enrichTool(t),
       };
     }),
     expired: partition.expired.map((t) => {
@@ -1088,8 +1293,14 @@ inductionsApp.get("/profile/me", async (c) => {
               ),
             }
           : null,
+        ...enrichTool(t),
       };
     }),
+    noInductionNeeded: noInductionNeededTools.map((t) => ({
+      id: t.id,
+      name: t.name,
+      ...enrichTool(t),
+    })),
   });
 });
 

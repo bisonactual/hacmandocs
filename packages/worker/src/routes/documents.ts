@@ -4,8 +4,9 @@ import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
 import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
-import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
+import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers, toolRecords } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
+import { validateLockedEdit } from "../services/tool-docs";
 
 /**
  * Extract plain text from a ProseMirror/TipTap JSON document node.
@@ -19,6 +20,23 @@ export function extractPlainText(node: DocumentNode): string {
     return node.content.map(extractPlainText).join(" ");
   }
   return "";
+}
+
+/**
+ * Check if a document is linked to a tool record.
+ * Returns the tool record if found, null otherwise.
+ */
+async function getLinkedToolRecord(
+  rawDb: D1Database,
+  docPageId: string,
+) {
+  const db = drizzle(rawDb);
+  const [linked] = await db
+    .select()
+    .from(toolRecords)
+    .where(eq(toolRecords.docPageId, docPageId))
+    .limit(1);
+  return linked ?? null;
 }
 
 const documentsApp = new Hono<Env>();
@@ -269,6 +287,24 @@ documentsApp.put("/:id", requireRole("Editor"), async (c) => {
     return c.json({ error: "Document not found" }, 404);
   }
 
+  // Guard: check if this document is linked to a tool record
+  const linkedTool = await getLinkedToolRecord(c.env.DB, id);
+  if (linkedTool) {
+    if (body.title !== undefined && body.title.trim() !== existing.title) {
+      return c.json({ error: "This page's title is managed by the linked tool record and cannot be changed manually." }, 400);
+    }
+    if (body.categoryId !== undefined && body.categoryId !== existing.categoryId) {
+      return c.json({ error: "This page's category is managed by the linked tool record and cannot be changed manually." }, 400);
+    }
+    if (body.contentJson !== undefined) {
+      const existingContent = JSON.parse(existing.contentJson) as DocumentNode;
+      const lockError = validateLockedEdit(existingContent, body.contentJson);
+      if (lockError) {
+        return c.json({ error: lockError }, 400);
+      }
+    }
+  }
+
   const now = Math.floor(Date.now() / 1000);
 
   const updates: Record<string, unknown> = { updatedAt: now };
@@ -344,6 +380,14 @@ documentsApp.put("/:id/publish", requireRole("Admin"), async (c) => {
     return c.json({ error: "Document not found" }, 404);
   }
 
+  // Guard: prevent unpublishing linked docs pages
+  if (body.published === false) {
+    const linkedTool = await getLinkedToolRecord(c.env.DB, id);
+    if (linkedTool) {
+      return c.json({ error: "This page is linked to a tool record and must remain published." }, 400);
+    }
+  }
+
   const isPublished = body.published !== false ? 1 : 0;
   const now = Math.floor(Date.now() / 1000);
 
@@ -371,6 +415,12 @@ documentsApp.delete("/:id", requireRole("Admin"), async (c) => {
 
   if (!existing) {
     return c.json({ error: "Document not found" }, 404);
+  }
+
+  // Guard: prevent deleting linked docs pages
+  const linkedTool = await getLinkedToolRecord(c.env.DB, id);
+  if (linkedTool) {
+    return c.json({ error: "This page is linked to a tool record and cannot be deleted. Delete the tool record first to release this page." }, 400);
   }
 
   // Delete FTS entry first (before the document row is gone)

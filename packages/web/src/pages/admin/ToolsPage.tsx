@@ -10,6 +10,7 @@ interface ToolRow {
   refresherQuizId: string | null;
   retrainingIntervalDays: number | null;
   areaId: string | null;
+  noInductionNeeded: number | null;
 }
 
 interface QuizOption { id: string; title: string; }
@@ -19,7 +20,7 @@ interface UserRow { id: string; name: string; email: string; }
 
 const emptyForm = {
   name: "", quizId: "", preInductionQuizId: "", refresherQuizId: "",
-  retrainingIntervalDays: "", areaId: "",
+  retrainingIntervalDays: "", areaId: "", noInductionNeeded: false,
 };
 
 export default function ToolsPage() {
@@ -34,6 +35,7 @@ export default function ToolsPage() {
   const [_trainers, setTrainers] = useState<TrainerRow[]>([]);
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
+  const [repairStatus, setRepairStatus] = useState<Record<string, string>>({});
 
   const load = () => {
     setLoading(true);
@@ -60,6 +62,7 @@ export default function ToolsPage() {
       refresherQuizId: form.refresherQuizId || null,
       retrainingIntervalDays: form.retrainingIntervalDays ? Number(form.retrainingIntervalDays) : null,
       areaId: form.areaId || null,
+      noInductionNeeded: form.noInductionNeeded ? 1 : 0,
     };
     try {
       if (editingId) {
@@ -84,6 +87,7 @@ export default function ToolsPage() {
       refresherQuizId: tool.refresherQuizId ?? "",
       retrainingIntervalDays: tool.retrainingIntervalDays?.toString() ?? "",
       areaId: tool.areaId ?? "",
+      noInductionNeeded: tool.noInductionNeeded === 1,
     });
   };
 
@@ -115,6 +119,19 @@ export default function ToolsPage() {
       body: JSON.stringify({ userIds: selectedTrainers }),
     });
     setTrainerToolId(null);
+  };
+
+  const handleRepairLink = async (toolId: string) => {
+    setRepairStatus((prev) => ({ ...prev, [toolId]: "repairing" }));
+    try {
+      await apiFetch(`/api/inductions/tools/${toolId}/repair-link`, { method: "POST" });
+      setRepairStatus((prev) => ({ ...prev, [toolId]: "linked" }));
+      setTimeout(() => setRepairStatus((prev) => { const next = { ...prev }; delete next[toolId]; return next; }), 2000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Repair failed";
+      setRepairStatus((prev) => ({ ...prev, [toolId]: `error: ${msg}` }));
+      setTimeout(() => setRepairStatus((prev) => { const next = { ...prev }; delete next[toolId]; return next; }), 3000);
+    }
   };
 
   const quizName = (id: string | null) => quizzes.find((q) => q.id === id)?.title ?? "—";
@@ -169,6 +186,13 @@ export default function ToolsPage() {
             <input type="number" min="1" value={form.retrainingIntervalDays} onChange={(e) => setForm({ ...form, retrainingIntervalDays: e.target.value })} required className="w-24 rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow" />
           </div>
         )}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
+            <input type="checkbox" checked={form.noInductionNeeded} onChange={(e) => setForm({ ...form, noInductionNeeded: e.target.checked })} className="accent-hacman-yellow" />
+            No induction needed
+          </label>
+          <span className="text-xs text-hacman-muted">This tool does not require training or certification</span>
+        </div>
         <button type="submit" className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark">
           {editingId ? "Update" : "Create"}
         </button>
@@ -201,6 +225,9 @@ export default function ToolsPage() {
               <td className="flex gap-2 py-2">
                 <button onClick={() => handleEdit(t)} className="text-hacman-yellow hover:underline text-xs">Edit</button>
                 <button onClick={() => openTrainers(t.id)} className="text-green-400 hover:underline text-xs">Trainers</button>
+                <button onClick={() => handleRepairLink(t.id)} disabled={repairStatus[t.id] === "repairing"} className="text-blue-400 hover:underline text-xs disabled:opacity-50">
+                  {repairStatus[t.id] === "repairing" ? "Repairing…" : repairStatus[t.id] === "linked" ? "Linked!" : repairStatus[t.id]?.startsWith("error:") ? repairStatus[t.id].slice(7) : "Repair Link"}
+                </button>
                 <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:underline text-xs">Delete</button>
               </td>
             </tr>

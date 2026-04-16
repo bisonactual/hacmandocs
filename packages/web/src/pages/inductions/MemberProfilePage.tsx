@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 
@@ -9,6 +9,11 @@ interface ToolInfo {
   preInductionQuizId: string | null;
   refresherQuizId: string | null;
   retrainingIntervalDays: number | null;
+  areaId: string | null;
+  areaName: string | null;
+  docPageId: string | null;
+  docPagePublished?: boolean;
+  noInductionNeeded?: boolean;
   passedPreInduction?: boolean;
 }
 
@@ -25,6 +30,10 @@ interface CompletedTool {
   quizId: string | null;
   refresherQuizId: string | null;
   retrainingIntervalDays: number | null;
+  areaId: string | null;
+  areaName: string | null;
+  docPageId: string | null;
+  docPagePublished?: boolean;
   certification: CertData | null;
 }
 
@@ -34,13 +43,53 @@ interface ExpiredTool {
   quizId: string | null;
   refresherQuizId: string | null;
   retrainingIntervalDays: number | null;
+  areaId: string | null;
+  areaName: string | null;
+  docPageId: string | null;
+  docPagePublished?: boolean;
   certification: CertData | null;
+}
+
+interface NoInductionTool {
+  id: string;
+  name: string;
+  areaId: string | null;
+  areaName: string | null;
+  docPageId: string | null;
+  docPagePublished?: boolean;
 }
 
 interface ProfileData {
   available: ToolInfo[];
   completed: CompletedTool[];
   expired: ExpiredTool[];
+  noInductionNeeded: NoInductionTool[];
+}
+
+/** Render tool name as a Link if docPageId is set and published, otherwise plain text */
+function ToolName({ tool }: { tool: { name: string; docPageId: string | null; docPagePublished?: boolean } }) {
+  if (tool.docPageId && tool.docPagePublished === true) {
+    return (
+      <Link to={`/docs/${tool.docPageId}`} className="font-medium text-white hover:text-hacman-yellow transition-colors underline decoration-hacman-gray hover:decoration-hacman-yellow">
+        {tool.name}
+      </Link>
+    );
+  }
+  return <span className="font-medium text-white">{tool.name}</span>;
+}
+
+/** Filter tools by search text (case-insensitive name match) and areaId */
+export function filterTools<T extends { name: string; areaId: string | null }>(
+  tools: T[],
+  search: string,
+  selectedAreaId: string,
+): T[] {
+  const query = search.toLowerCase().trim();
+  return tools.filter((t) => {
+    const matchesName = !query || t.name.toLowerCase().includes(query);
+    const matchesArea = !selectedAreaId || t.areaId === selectedAreaId;
+    return matchesName && matchesArea;
+  });
 }
 
 function quizRoleBadge(role: string) {
@@ -59,6 +108,8 @@ export default function MemberProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [marking, setMarking] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [selectedAreaId, setSelectedAreaId] = useState("");
 
   const load = () => {
     setLoading(true);
@@ -82,6 +133,52 @@ export default function MemberProfilePage() {
     }
   };
 
+  // Extract unique areas from all tool arrays for the area filter dropdown
+  const areas = useMemo(() => {
+    if (!profile) return [];
+    const allTools = [
+      ...profile.available,
+      ...profile.completed,
+      ...profile.expired,
+      ...profile.noInductionNeeded,
+    ];
+    const areaMap = new Map<string, string>();
+    for (const t of allTools) {
+      if (t.areaId && t.areaName) {
+        areaMap.set(t.areaId, t.areaName);
+      }
+    }
+    return Array.from(areaMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [profile]);
+
+  // Filtered tool lists
+  const filteredAvailable = useMemo(
+    () => (profile ? filterTools(profile.available, search, selectedAreaId) : []),
+    [profile, search, selectedAreaId],
+  );
+  const filteredCompleted = useMemo(
+    () => (profile ? filterTools(profile.completed, search, selectedAreaId) : []),
+    [profile, search, selectedAreaId],
+  );
+  const filteredExpired = useMemo(
+    () => (profile ? filterTools(profile.expired, search, selectedAreaId) : []),
+    [profile, search, selectedAreaId],
+  );
+  const filteredNoInduction = useMemo(
+    () => (profile ? filterTools(profile.noInductionNeeded, search, selectedAreaId) : []),
+    [profile, search, selectedAreaId],
+  );
+
+  const hasAnyFilteredResults =
+    filteredAvailable.length > 0 ||
+    filteredCompleted.length > 0 ||
+    filteredExpired.length > 0 ||
+    filteredNoInduction.length > 0;
+
+  const isFiltering = search.trim() !== "" || selectedAreaId !== "";
+
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-hacman-yellow border-t-transparent" />
@@ -92,13 +189,13 @@ export default function MemberProfilePage() {
 
   const now = Math.floor(Date.now() / 1000);
 
-  const availableQuizzes = profile.available.filter(
+  const availableQuizzes = filteredAvailable.filter(
     (t) => t.quizId || t.preInductionQuizId,
   );
-  const awaitingInduction = profile.available.filter(
+  const awaitingInduction = filteredAvailable.filter(
     (t) => t.passedPreInduction && !t.quizId,
   );
-  const signoffOnly = profile.available.filter(
+  const signoffOnly = filteredAvailable.filter(
     (t) => !t.quizId && !t.preInductionQuizId && !t.refresherQuizId,
   );
 
@@ -134,6 +231,34 @@ export default function MemberProfilePage() {
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
+      {/* Search and Area Filter */}
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input
+          type="text"
+          placeholder="Search tools by name…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark px-4 py-2 text-sm text-white placeholder-hacman-muted focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow"
+        />
+        <select
+          value={selectedAreaId}
+          onChange={(e) => setSelectedAreaId(e.target.value)}
+          className="rounded-lg border border-hacman-gray bg-hacman-dark px-4 py-2 text-sm text-white focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow"
+        >
+          <option value="">All Areas</option>
+          {areas.map((area) => (
+            <option key={area.id} value={area.id}>{area.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* No results empty state */}
+      {isFiltering && !hasAnyFilteredResults && (
+        <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
+          <p className="text-sm text-hacman-muted">No tools found matching your filters.</p>
+        </div>
+      )}
+
       {/* Available Training */}
       <section>
         <div className="mb-3 flex items-center gap-2">
@@ -154,7 +279,7 @@ export default function MemberProfilePage() {
               return (
                 <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4 transition hover:border-hacman-yellow/30">
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-white">{tool.name}</span>
+                    <ToolName tool={tool} />
                     {showPreInduction && quizRoleBadge("pre")}
                     {showOnline && quizRoleBadge("online")}
                   </div>
@@ -183,7 +308,7 @@ export default function MemberProfilePage() {
               <div key={tool.id} className="flex items-center justify-between rounded-xl border border-purple-500/30 bg-purple-500/5 px-5 py-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-white">{tool.name}</span>
+                    <ToolName tool={tool} />
                     {quizRoleBadge("signoff")}
                   </div>
                   <p className="text-xs text-purple-400">Pre-induction passed. Contact a trainer to book your in-person session.</p>
@@ -194,7 +319,7 @@ export default function MemberProfilePage() {
             {signoffOnly.map((tool) => (
               <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4">
                 <div className="flex items-center gap-3">
-                  <span className="font-medium text-white">{tool.name}</span>
+                  <ToolName tool={tool} />
                   {quizRoleBadge("signoff")}
                 </div>
                 <button
@@ -216,19 +341,19 @@ export default function MemberProfilePage() {
           <span className="text-lg">✅</span>
           <h3 className="text-lg font-semibold text-white">Active Certifications</h3>
         </div>
-        {profile.completed.length === 0 ? (
+        {filteredCompleted.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
             <p className="text-sm text-hacman-muted">No certifications yet. Complete training above to get started.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {profile.completed.map((tool) => {
+            {filteredCompleted.map((tool) => {
               const cert = tool.certification;
               const daysRemaining = cert?.expiresAt ? Math.ceil((cert.expiresAt - now) / 86400) : null;
               return (
                 <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4">
                   <div className="space-y-1">
-                    <span className="font-medium text-white">{tool.name}</span>
+                    <ToolName tool={tool} />
                     <div className="flex items-center gap-3 text-xs text-hacman-muted">
                       {cert && <span>Completed {new Date(cert.completedAt * 1000).toLocaleDateString()}</span>}
                       {daysRemaining !== null && daysRemaining > 0 && (
@@ -263,18 +388,18 @@ export default function MemberProfilePage() {
           <span className="text-lg">⚠️</span>
           <h3 className="text-lg font-semibold text-white">Expired Certifications</h3>
         </div>
-        {profile.expired.length === 0 ? (
+        {filteredExpired.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
             <p className="text-sm text-hacman-muted">No expired certifications. You're all up to date.</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {profile.expired.map((tool) => {
+            {filteredExpired.map((tool) => {
               const cert = tool.certification;
               return (
                 <div key={tool.id} className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/5 px-5 py-4">
                   <div className="space-y-1">
-                    <span className="font-medium text-white">{tool.name}</span>
+                    <ToolName tool={tool} />
                     <span className="block text-xs text-red-400">
                       Expired {cert?.expiresAt ? new Date(cert.expiresAt * 1000).toLocaleDateString() : ""}
                     </span>
@@ -298,6 +423,29 @@ export default function MemberProfilePage() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </section>
+
+      {/* No Induction Required */}
+      <section>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="text-lg">🔧</span>
+          <h3 className="text-lg font-semibold text-white">General Equipment</h3>
+        </div>
+        {filteredNoInduction.length === 0 ? (
+          <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
+            <p className="text-sm text-hacman-muted">No general equipment listed.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredNoInduction.map((tool) => (
+              <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <ToolName tool={tool} />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>

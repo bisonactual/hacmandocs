@@ -280,6 +280,9 @@ export const toolRecords = sqliteTable(
       .references(() => quizzes.id),
     retrainingIntervalDays: integer("retraining_interval_days"),
     areaId: text("area_id"),
+    // ── New columns for Tool Docs Linking ──
+    docPageId: text("doc_page_id").references(() => documents.id),
+    noInductionNeeded: integer("no_induction_needed").default(0),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
