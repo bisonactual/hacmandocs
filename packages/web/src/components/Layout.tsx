@@ -29,10 +29,10 @@ export default function Layout() {
   }, [close]);
 
   return (
-    <div className="flex h-screen flex-col bg-hacman-black">
+    <div className="flex h-screen flex-col overflow-hidden bg-hacman-black">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-hacman-gray bg-hacman-dark px-3 py-3 md:px-5">
-        <div className="flex items-center gap-2 md:gap-3">
+      <header className="flex min-w-0 items-center justify-between border-b border-hacman-gray bg-hacman-dark px-3 py-3 md:px-5">
+        <div className="flex min-w-0 shrink items-center gap-2 md:gap-3">
           {/* Hamburger — mobile only */}
           {isMobile && (
             <button
@@ -53,16 +53,16 @@ export default function Layout() {
               )}
             </button>
           )}
-          <Link to="/" className="flex items-center gap-3 text-white hover:text-hacman-yellow transition-colors">
-            <HacmanLogo className="h-8" />
-            <div className="hidden sm:block">
+          <Link to="/" className="flex min-w-0 items-center gap-3 text-white hover:text-hacman-yellow transition-colors">
+            <HacmanLogo className="h-8 shrink-0" />
+            <div className="hidden md:block">
               <span className="text-[10px] uppercase tracking-widest text-hacman-muted leading-none block">
                 Documentation &amp; Training
               </span>
             </div>
           </Link>
         </div>
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex shrink-0 items-center gap-2 md:gap-3">
           <SearchBar />
           {token && <NotificationBell />}
           {user ? (

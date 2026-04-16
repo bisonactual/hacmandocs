@@ -109,22 +109,22 @@ function HomePage() {
 
       {/* Info cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-5">
-          <h3 className="flex items-center gap-2 font-semibold text-white">
+        <Link to="/search" className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5">
+          <h3 className="flex items-center gap-2 font-semibold text-white group-hover:text-hacman-yellow transition-colors">
             <span className="text-hacman-yellow">📄</span> Documentation
           </h3>
           <p className="mt-2 text-sm text-hacman-muted">
             Browse workshop guides, equipment manuals, and safety procedures using the sidebar navigation. No login required.
           </p>
-        </div>
-        <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-5">
-          <h3 className="flex items-center gap-2 font-semibold text-white">
+        </Link>
+        <Link to={user ? "/inductions/profile" : "/login"} className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5">
+          <h3 className="flex items-center gap-2 font-semibold text-white group-hover:text-hacman-yellow transition-colors">
             <span className="text-hacman-yellow">🔧</span> Tool Training
           </h3>
           <p className="mt-2 text-sm text-hacman-muted">
             Complete inductions for workshop tools. Take online inductions and complete refresher courses.
           </p>
-        </div>
+        </Link>
       </div>
     </div>
   );
