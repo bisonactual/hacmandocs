@@ -275,6 +275,21 @@ inductionsApp.delete("/tools/:id", requireAdminOrManager(), async (c) => {
     console.error("[tool-docs] Failed to release docs page during tool deletion:", err);
   }
 
+  // Delete related records that have FK references to this tool
+  await db.delete(toolTrainers).where(eq(toolTrainers.toolRecordId, id));
+  await db.delete(certifications).where(eq(certifications.toolRecordId, id));
+  await db.delete(inductionSignoffs).where(eq(inductionSignoffs.toolRecordId, id));
+
+  // Delete checklist items before checklists (items reference checklists)
+  const checklists = await db
+    .select({ id: inductionChecklists.id })
+    .from(inductionChecklists)
+    .where(eq(inductionChecklists.toolRecordId, id));
+  for (const cl of checklists) {
+    await db.delete(inductionChecklistItems).where(eq(inductionChecklistItems.checklistId, cl.id));
+  }
+  await db.delete(inductionChecklists).where(eq(inductionChecklists.toolRecordId, id));
+
   await db.delete(toolRecords).where(eq(toolRecords.id, id));
   return c.json({ success: true });
 });
