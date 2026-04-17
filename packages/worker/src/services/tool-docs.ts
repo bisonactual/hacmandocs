@@ -1,6 +1,6 @@
 import type { DocumentNode } from '@hacmandocs/shared';
 import { parseMarkdown } from '@hacmandocs/shared';
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
+import { eq, isNull, desc } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { categories, documents, toolRecords } from '../db/schema';
 import { extractPlainText } from '../routes/documents';
@@ -185,11 +185,58 @@ export function validateLockedEdit(
 // ── Database Operations ──────────────────────────────────────────────
 
 /**
- * Ensure the "Workshop Info" > "Equipment" category path exists.
- * Creates either or both categories if they don't exist.
- * Returns the Equipment category ID.
+ * Normalise a category name for fuzzy matching:
+ * lowercase, replace dashes/underscores with spaces, collapse whitespace.
  */
-export async function ensureEquipmentCategory(
+function normaliseName(name: string): string {
+  return name.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Find the "Workshop Info" > "{areaName}" category.
+ * Name matching is case-insensitive and treats spaces, dashes, and
+ * underscores as equivalent (e.g. "Visual Arts" matches "visual-arts").
+ * Returns the area category ID, or null if not found.
+ * Never creates categories — that is handled by the areas CRUD endpoints.
+ */
+export async function findAreaCategory(
+  rawDb: D1Database,
+  areaName: string,
+): Promise<string | null> {
+  const db = drizzle(rawDb);
+
+  // Find "Workshop Info" top-level category
+  const workshopCandidates = await db
+    .select()
+    .from(categories)
+    .where(isNull(categories.parentId));
+
+  const existingWorkshop = workshopCandidates.find(
+    (c) => normaliseName(c.name) === normaliseName('Workshop Info'),
+  );
+
+  if (!existingWorkshop) return null;
+
+  // Find the area category under Workshop Info
+  const areaCandidates = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.parentId, existingWorkshop.id));
+
+  const normalised = normaliseName(areaName);
+  const existingArea = areaCandidates.find(
+    (c) => normaliseName(c.name) === normalised,
+  );
+
+  return existingArea?.id ?? null;
+}
+
+/**
+ * Create a docs category under "Workshop Info" for a tool area.
+ * Ensures "Workshop Info" exists first, then creates the area category.
+ * Returns the new area category ID.
+ */
+export async function createAreaCategory(
   rawDb: D1Database,
   areaName: string,
 ): Promise<string> {
@@ -197,11 +244,14 @@ export async function ensureEquipmentCategory(
   const now = Math.floor(Date.now() / 1000);
 
   // Find or create "Workshop Info" top-level category
-  const [existingWorkshop] = await db
+  const workshopCandidates = await db
     .select()
     .from(categories)
-    .where(and(sql`LOWER(${categories.name}) = LOWER(${'Workshop Info'})`, isNull(categories.parentId)))
-    .limit(1);
+    .where(isNull(categories.parentId));
+
+  const existingWorkshop = workshopCandidates.find(
+    (c) => normaliseName(c.name) === normaliseName('Workshop Info'),
+  );
 
   let workshopId: string;
   if (existingWorkshop) {
@@ -217,48 +267,50 @@ export async function ensureEquipmentCategory(
     });
   }
 
-  // Find or create the area category under Workshop Info (e.g. "Metalwork", "Visual Arts")
-  const [existingArea] = await db
-    .select()
-    .from(categories)
-    .where(and(sql`LOWER(${categories.name}) = LOWER(${areaName})`, eq(categories.parentId, workshopId)))
-    .limit(1);
-
-  let areaId: string;
-  if (existingArea) {
-    areaId = existingArea.id;
-  } else {
-    areaId = crypto.randomUUID();
-    await db.insert(categories).values({
-      id: areaId,
-      name: areaName,
-      parentId: workshopId,
-      sortOrder: 0,
-      createdAt: now,
-    });
-  }
-
-  // Find or create "Equipment" child category under the area
-  const [existingEquipment] = await db
-    .select()
-    .from(categories)
-    .where(and(sql`LOWER(${categories.name}) = LOWER(${'Equipment'})`, eq(categories.parentId, areaId)))
-    .limit(1);
-
-  if (existingEquipment) {
-    return existingEquipment.id;
-  }
-
-  const equipmentId = crypto.randomUUID();
+  const areaId = crypto.randomUUID();
   await db.insert(categories).values({
-    id: equipmentId,
-    name: 'Equipment',
-    parentId: areaId,
+    id: areaId,
+    name: areaName,
+    parentId: workshopId,
     sortOrder: 0,
     createdAt: now,
   });
 
-  return equipmentId;
+  return areaId;
+}
+
+/**
+ * Delete a docs category under "Workshop Info" if it has no documents or child categories.
+ */
+export async function deleteAreaCategoryIfEmpty(
+  rawDb: D1Database,
+  areaName: string,
+): Promise<void> {
+  const db = drizzle(rawDb);
+
+  const categoryId = await findAreaCategory(rawDb, areaName);
+  if (!categoryId) return;
+
+  // Check for documents in this category
+  const docs = await db
+    .select({ id: documents.id })
+    .from(documents)
+    .where(eq(documents.categoryId, categoryId))
+    .limit(1);
+
+  if (docs.length > 0) return;
+
+  // Check for child categories
+  const children = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.parentId, categoryId))
+    .limit(1);
+
+  if (children.length > 0) return;
+
+  // Safe to delete
+  await db.delete(categories).where(eq(categories.id, categoryId));
 }
 
 /**
@@ -270,7 +322,7 @@ export async function ensureEquipmentCategory(
 export async function findUnlinkedPageByTitle(
   rawDb: D1Database,
   title: string,
-  equipmentCategoryId: string,
+  areaCategoryId: string,
 ): Promise<{ id: string; contentJson: string; updatedAt: number } | null> {
   const db = drizzle(rawDb);
 
@@ -300,9 +352,9 @@ export async function findUnlinkedPageByTitle(
 
   if (unlinked.length === 0) return null;
 
-  // Prefer pages in the target Equipment category
-  const inEquipment = unlinked.filter((doc) => doc.categoryId === equipmentCategoryId);
-  const selected = inEquipment.length > 0 ? inEquipment[0] : unlinked[0];
+  // Prefer pages in the target area category
+  const inArea = unlinked.filter((doc) => doc.categoryId === areaCategoryId);
+  const selected = inArea.length > 0 ? inArea[0] : unlinked[0];
 
   if (unlinked.length > 1) {
     console.warn(
@@ -330,8 +382,12 @@ export async function ensureDocsPage(params: {
   const { db: rawDb, toolId, toolName, areaName, quizDescription, createdBy } = params;
 
   try {
-    const equipmentCategoryId = await ensureEquipmentCategory(rawDb, areaName);
-    const orphanedPage = await findUnlinkedPageByTitle(rawDb, toolName, equipmentCategoryId);
+    const areaCategoryId = await findAreaCategory(rawDb, areaName);
+    if (!areaCategoryId) {
+      console.warn(`[tool-docs] No docs category found for area "${areaName}". Skipping docs page creation.`);
+      return null;
+    }
+    const orphanedPage = await findUnlinkedPageByTitle(rawDb, toolName, areaCategoryId);
     const db = drizzle(rawDb);
     const now = Math.floor(Date.now() / 1000);
 
@@ -360,7 +416,7 @@ export async function ensureDocsPage(params: {
         .update(documents)
         .set({
           contentJson: contentJsonStr,
-          categoryId: equipmentCategoryId,
+          categoryId: areaCategoryId,
           isPublished: 1,
           updatedAt: now,
         })
@@ -399,7 +455,7 @@ export async function ensureDocsPage(params: {
       id: docId,
       title: toolName,
       contentJson: contentJsonStr,
-      categoryId: equipmentCategoryId,
+      categoryId: areaCategoryId,
       isSensitive: 0,
       isPublished: 1,
       createdBy,

@@ -18,13 +18,14 @@ import {
   toolTrainers,
   areaLeaders,
   documents,
+  categories,
 } from "../db/schema";
 import { validateToolRecord, validateQuestion, partitionMemberTools } from "../services/induction-validators";
 import { recalculateExpiry, createCertification, getCertificationStatus } from "../services/certification";
 import { scoreAttempt } from "../services/quiz-scoring";
 import { validateSignoff, validateChecklistSection, validateChecklistItem } from "../services/signoff-validators";
 import { requireToolAccess, requireAreaAccess } from "../middleware/tool-access";
-import { ensureDocsPage, syncRename, releaseDocsPage, syncDescription } from "../services/tool-docs";
+import { ensureDocsPage, syncRename, releaseDocsPage, syncDescription, createAreaCategory, deleteAreaCategoryIfEmpty, findAreaCategory } from "../services/tool-docs";
 
 const inductionsApp = new Hono<Env>();
 
@@ -2364,6 +2365,13 @@ inductionsApp.post("/areas", requireAdminOrManager(), async (c) => {
     throw err;
   }
 
+  // Create matching docs category under Workshop Info
+  try {
+    await createAreaCategory(c.env.DB, body.name.trim());
+  } catch (err) {
+    console.error("[areas] Failed to create docs category:", err);
+  }
+
   return c.json({ id, success: true }, 201);
 });
 
@@ -2403,6 +2411,22 @@ inductionsApp.put("/areas/:id", requireAreaAccess("id"), async (c) => {
     throw err;
   }
 
+  // Rename matching docs category if it exists
+  if (existing.name !== body.name.trim()) {
+    try {
+      const catId = await findAreaCategory(c.env.DB, existing.name);
+      if (catId) {
+        const catDb = drizzle(c.env.DB);
+        await catDb
+          .update(categories)
+          .set({ name: body.name.trim() })
+          .where(eq(categories.id, catId));
+      }
+    } catch (err) {
+      console.error("[areas] Failed to rename docs category:", err);
+    }
+  }
+
   return c.json({ success: true });
 });
 
@@ -2433,6 +2457,13 @@ inductionsApp.delete("/areas/:id", requireAdminOrManager(), async (c) => {
     .where(eq(toolRecords.areaId, areaId));
 
   await db.delete(toolAreas).where(eq(toolAreas.id, areaId));
+
+  // Delete matching docs category if empty
+  try {
+    await deleteAreaCategoryIfEmpty(c.env.DB, existing.name);
+  } catch (err) {
+    console.error("[areas] Failed to delete docs category:", err);
+  }
 
   return c.json({ success: true });
 });

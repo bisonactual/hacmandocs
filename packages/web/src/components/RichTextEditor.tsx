@@ -181,29 +181,14 @@ const DetailsNode = Node.create({
     };
 
     if (isSystemManaged) {
+      // Content hole (0) must be the sole child of its parent element.
+      // The lock badge is rendered via CSS ::after instead of an inline span.
       attrs["data-system-managed"] = "true";
       attrs["contenteditable"] = "false";
       attrs["class"] =
-        "border border-hacman-gray rounded-lg p-3 bg-hacman-dark/50 my-2 relative";
+        "border border-hacman-gray rounded-lg p-3 bg-hacman-dark/50 my-2 relative before:content-['🔒_System_managed'] before:absolute before:top-1 before:right-2 before:text-xs before:text-gray-500 before:select-none before:pointer-events-none";
     } else {
       attrs["class"] = "border border-hacman-gray rounded-lg p-3 my-2";
-    }
-
-    if (isSystemManaged) {
-      return [
-        "details",
-        attrs,
-        [
-          "span",
-          {
-            class:
-              "absolute top-1 right-2 text-xs text-gray-500 select-none pointer-events-none",
-            contenteditable: "false",
-          },
-          "🔒 System managed",
-        ],
-        0, // hole for child content
-      ];
     }
 
     return ["details", attrs, 0];
