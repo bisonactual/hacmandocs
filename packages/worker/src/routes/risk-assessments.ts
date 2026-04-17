@@ -93,6 +93,84 @@ function validateContent(c: unknown): { valid: true; content: RiskAssessmentCont
   };
 }
 
+// ── POST /risk-assessments/import ─────────────────────────────────────
+// Bulk import from Google Docs export. Admin/Manager only.
+// MUST be registered before POST /:toolId to avoid "import" matching as a toolId.
+
+raApp.post("/import", requireAdminOrManager(), async (c) => {
+  const body = await c.req.json<{
+    riskAssessments?: Array<{ toolName: string; toolId?: string; content: unknown }>;
+    toolName?: string;
+    toolId?: string;
+    content?: unknown;
+  }>();
+
+  const db = drizzle(c.env.DB);
+  const session = c.get("session");
+  const now = Math.floor(Date.now() / 1000);
+
+  const items = body.riskAssessments ?? [{ toolName: body.toolName!, toolId: body.toolId, content: body.content }];
+
+  const results: Array<{ toolName: string; status: "imported" | "updated" | "error"; error?: string }> = [];
+
+  for (const item of items) {
+    try {
+      const validation = validateContent(item.content);
+      if (!validation.valid) {
+        results.push({ toolName: item.toolName ?? item.toolId ?? "unknown", status: "error", error: validation.error });
+        continue;
+      }
+
+      let toolId = item.toolId;
+      if (!toolId && item.toolName) {
+        const tools = await db.select().from(toolRecords);
+        const match = tools.find(
+          (t) => t.name.toLowerCase() === item.toolName.toLowerCase(),
+        );
+        if (!match) {
+          results.push({ toolName: item.toolName, status: "error", error: `Tool "${item.toolName}" not found` });
+          continue;
+        }
+        toolId = match.id;
+      }
+
+      if (!toolId) {
+        results.push({ toolName: "unknown", status: "error", error: "toolId or toolName is required" });
+        continue;
+      }
+
+      const [existing] = await db
+        .select()
+        .from(riskAssessments)
+        .where(and(eq(riskAssessments.toolRecordId, toolId), isNull(riskAssessments.deletedAt)))
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(riskAssessments)
+          .set({ contentJson: JSON.stringify(validation.content), updatedAt: now })
+          .where(eq(riskAssessments.id, existing.id));
+        results.push({ toolName: item.toolName ?? toolId, status: "updated" });
+      } else {
+        await db.insert(riskAssessments).values({
+          id: crypto.randomUUID(),
+          toolRecordId: toolId,
+          contentJson: JSON.stringify(validation.content),
+          status: "draft",
+          createdBy: session.userId,
+          createdAt: now,
+          updatedAt: now,
+        });
+        results.push({ toolName: item.toolName ?? toolId, status: "imported" });
+      }
+    } catch (e) {
+      results.push({ toolName: item.toolName ?? "unknown", status: "error", error: String(e) });
+    }
+  }
+
+  return c.json({ results });
+});
+
 // ── GET /risk-assessments ─────────────────────────────────────────────
 // List RA status for all tools (id, toolRecordId, status). Public.
 
@@ -325,83 +403,6 @@ raApp.delete("/:toolId", async (c) => {
     .where(eq(riskAssessments.id, ra.id));
 
   return c.json({ success: true });
-});
-
-// ── POST /risk-assessments/import ─────────────────────────────────────
-// Bulk import from Google Sheets export. Admin/Manager only.
-
-raApp.post("/import", requireAdminOrManager(), async (c) => {
-  const body = await c.req.json<{
-    riskAssessments?: Array<{ toolName: string; toolId?: string; content: unknown }>;
-    toolName?: string;
-    toolId?: string;
-    content?: unknown;
-  }>();
-
-  const db = drizzle(c.env.DB);
-  const session = c.get("session");
-  const now = Math.floor(Date.now() / 1000);
-
-  const items = body.riskAssessments ?? [{ toolName: body.toolName!, toolId: body.toolId, content: body.content }];
-
-  const results: Array<{ toolName: string; status: "imported" | "updated" | "error"; error?: string }> = [];
-
-  for (const item of items) {
-    try {
-      const validation = validateContent(item.content);
-      if (!validation.valid) {
-        results.push({ toolName: item.toolName ?? item.toolId ?? "unknown", status: "error", error: validation.error });
-        continue;
-      }
-
-      let toolId = item.toolId;
-      if (!toolId && item.toolName) {
-        const tools = await db.select().from(toolRecords);
-        const match = tools.find(
-          (t) => t.name.toLowerCase() === item.toolName.toLowerCase(),
-        );
-        if (!match) {
-          results.push({ toolName: item.toolName, status: "error", error: `Tool "${item.toolName}" not found` });
-          continue;
-        }
-        toolId = match.id;
-      }
-
-      if (!toolId) {
-        results.push({ toolName: "unknown", status: "error", error: "toolId or toolName is required" });
-        continue;
-      }
-
-      const [existing] = await db
-        .select()
-        .from(riskAssessments)
-        .where(and(eq(riskAssessments.toolRecordId, toolId), isNull(riskAssessments.deletedAt)))
-        .limit(1);
-
-      if (existing) {
-        await db
-          .update(riskAssessments)
-          .set({ contentJson: JSON.stringify(validation.content), updatedAt: now })
-          .where(eq(riskAssessments.id, existing.id));
-        results.push({ toolName: item.toolName ?? toolId, status: "updated" });
-      } else {
-        await db.insert(riskAssessments).values({
-          id: crypto.randomUUID(),
-          toolRecordId: toolId,
-          contentJson: JSON.stringify(validation.content),
-          status: "draft",
-          createdBy: session.userId,
-          createdAt: now,
-          updatedAt: now,
-        });
-        results.push({ toolName: item.toolName ?? toolId, status: "imported" });
-      }
-    } catch (e) {
-      results.push({ toolName: item.toolName ?? "unknown", status: "error", error: String(e) });
-    }
-  }
-
-  return c.json({ results });
 });
 
 export default raApp;
