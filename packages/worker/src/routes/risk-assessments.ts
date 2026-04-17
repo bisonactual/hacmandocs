@@ -195,7 +195,19 @@ function splitMeta(text: string): { name: string; date: string } {
     : { name: text.trim(), date: "" };
 }
 
-function parseGoogleDocText(text: string): RiskAssessmentContent {
+function htmlText(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseGoogleDocHtml(html: string): RiskAssessmentContent {
   let inductionRequired = false;
   let inductionDetails = "";
   let ppeRequired = "";
@@ -204,71 +216,80 @@ function parseGoogleDocText(text: string): RiskAssessmentContent {
   let updatedBy = "", updatedDate = "";
   let reviewBy = "", reviewDate = "";
   const rows: RiskAssessmentContent["rows"] = [];
-  let colMap: Record<string, number> | null = null;
 
-  for (const rawLine of text.split("\n")) {
-    const line = rawLine.trim();
+  // ── Parse tables ──────────────────────────────────────────────
+  const tableRegex = /<table[\s\S]*?<\/table>/gi;
+  const tableMatches = [...html.matchAll(tableRegex)];
+
+  for (const tableMatch of tableMatches) {
+    const tableHtml = tableMatch[0];
+    const trRegex = /<tr[\s\S]*?<\/tr>/gi;
+    const rowMatches = [...tableHtml.matchAll(trRegex)];
+    if (rowMatches.length < 2) continue;
+
+    // Extract cells from a row
+    const getCells = (rowHtml: string) => {
+      const cellRegex = /<t[dh][\s\S]*?<\/t[dh]>/gi;
+      return [...rowHtml.matchAll(cellRegex)].map((m) => htmlText(m[0]));
+    };
+
+    const headerCells = getCells(rowMatches[0][0]);
+    const h = headerCells.map((c) => c.toLowerCase());
+    if (!h.some((c) => c === "hazard")) continue;
+
+    const colMap = {
+      hazard:    findColIdx(h, ["hazard"]),
+      who:       findColIdx(h, ["who", "who might be harmed"]),
+      l:         findColIdx(h, ["l", "likelihood"]),
+      s:         findColIdx(h, ["s", "severity"]),
+      rationale: findColIdx(h, ["rationale", "reason"]),
+      controls:  findColIdx(h, ["controls required", "controls", "control measures"]),
+      lwc:       findColIdx(h, ["lwc", "likelihood with controls"]),
+      swc:       findColIdx(h, ["swc", "severity with controls"]),
+    };
+
+    for (let r = 1; r < rowMatches.length; r++) {
+      const cells = getCells(rowMatches[r][0]);
+      const hazard = cells[colMap.hazard] ?? "";
+      if (!hazard) continue;
+      rows.push({
+        id: crypto.randomUUID(),
+        hazard,
+        who:                    cells[colMap.who] ?? "",
+        likelihood:             clamp15(cells[colMap.l] ?? ""),
+        severity:               clamp15(cells[colMap.s] ?? ""),
+        rationale:              cells[colMap.rationale] ?? "",
+        controls:               cells[colMap.controls] ?? "",
+        likelihoodWithControls: clamp15(cells[colMap.lwc] ?? ""),
+        severityWithControls:   clamp15(cells[colMap.swc] ?? ""),
+      });
+    }
+  }
+
+  // ── Parse metadata from paragraph text (strip tables first) ──
+  const noTables = html.replace(/<table[\s\S]*?<\/table>/gi, "");
+  const pRegex = /<p[ >][\s\S]*?<\/p>/gi;
+  for (const pMatch of noTables.matchAll(pRegex)) {
+    const line = htmlText(pMatch[0]);
     if (!line) continue;
     const lower = line.toLowerCase();
 
-    // Metadata from plain paragraphs
     if (lower.includes("induction required")) {
       const val = afterColon(line);
       inductionRequired = /yes|true/i.test(val);
       const detail = val.replace(/^(yes|no)[^a-z]*/i, "").trim();
       if (detail) inductionDetails = detail;
-      continue;
+    } else if (lower.includes("ppe required") || lower.startsWith("ppe:")) {
+      ppeRequired = afterColon(line);
+    } else if (lower.includes("before starting")) {
+      beforeStarting = afterColon(line);
+    } else if (/^created by/i.test(line)) {
+      const m = splitMeta(afterColon(line)); createdBy = m.name; createdDate = m.date;
+    } else if (/^updated by/i.test(line)) {
+      const m = splitMeta(afterColon(line)); updatedBy = m.name; updatedDate = m.date;
+    } else if (/^review by/i.test(line)) {
+      const m = splitMeta(afterColon(line)); reviewBy = m.name; reviewDate = m.date;
     }
-    if (lower.includes("ppe required") || lower.startsWith("ppe:")) {
-      ppeRequired = afterColon(line); continue;
-    }
-    if (lower.includes("before starting")) {
-      beforeStarting = afterColon(line); continue;
-    }
-    if (/^created by/i.test(line)) {
-      const m = splitMeta(afterColon(line)); createdBy = m.name; createdDate = m.date; continue;
-    }
-    if (/^updated by/i.test(line)) {
-      const m = splitMeta(afterColon(line)); updatedBy = m.name; updatedDate = m.date; continue;
-    }
-    if (/^review by/i.test(line)) {
-      const m = splitMeta(afterColon(line)); reviewBy = m.name; reviewDate = m.date; continue;
-    }
-
-    // Table rows are tab-separated in Google Docs plain-text export
-    if (!rawLine.includes("\t")) continue;
-    const cells = rawLine.split("\t").map((c) => c.trim());
-
-    if (!colMap) {
-      if (cells.some((c) => c.toLowerCase() === "hazard")) {
-        const h = cells.map((c) => c.toLowerCase());
-        colMap = {
-          hazard:    findColIdx(h, ["hazard"]),
-          who:       findColIdx(h, ["who", "who might be harmed"]),
-          l:         findColIdx(h, ["l", "likelihood"]),
-          s:         findColIdx(h, ["s", "severity"]),
-          rationale: findColIdx(h, ["rationale", "reason"]),
-          controls:  findColIdx(h, ["controls required", "controls", "control measures"]),
-          lwc:       findColIdx(h, ["lwc", "likelihood with controls"]),
-          swc:       findColIdx(h, ["swc", "severity with controls"]),
-        };
-      }
-      continue;
-    }
-
-    const hazard = cells[colMap.hazard] ?? "";
-    if (!hazard) continue;
-    rows.push({
-      id: crypto.randomUUID(),
-      hazard,
-      who:                    cells[colMap.who] ?? "",
-      likelihood:             clamp15(cells[colMap.l] ?? ""),
-      severity:               clamp15(cells[colMap.s] ?? ""),
-      rationale:              cells[colMap.rationale] ?? "",
-      controls:               cells[colMap.controls] ?? "",
-      likelihoodWithControls: clamp15(cells[colMap.lwc] ?? ""),
-      severityWithControls:   clamp15(cells[colMap.swc] ?? ""),
-    });
   }
 
   return { inductionRequired, inductionDetails, ppeRequired, beforeStarting, rows, createdBy, createdDate, updatedBy, updatedDate, reviewBy, reviewDate };
@@ -281,7 +302,7 @@ raApp.post("/import-url", requireAdminOrManager(), async (c) => {
   if (!docIdMatch) return c.json({ error: "Invalid Google Doc URL — could not extract document ID." }, 400);
   const docId = docIdMatch[1];
 
-  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=html`;
   let fetchRes: Response;
   try {
     fetchRes = await fetch(exportUrl);
@@ -292,8 +313,8 @@ raApp.post("/import-url", requireAdminOrManager(), async (c) => {
     return c.json({ error: `Google returned ${fetchRes.status} — make sure the doc is set to "Anyone with the link can view".` }, 400);
   }
 
-  const text = await fetchRes.text();
-  const content = parseGoogleDocText(text);
+  const html = await fetchRes.text();
+  const content = parseGoogleDocHtml(html);
 
   const db = drizzle(c.env.DB);
   const session = c.get("session");
