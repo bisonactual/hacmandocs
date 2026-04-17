@@ -101,6 +101,33 @@ export const editProposals = sqliteTable(
   ]
 );
 
+// ── Delete Proposals ──────────────────────────────────────────────────
+
+export const deleteProposals = sqliteTable(
+  "delete_proposals",
+  {
+    id: text("id").primaryKey(),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => documents.id),
+    reason: text("reason"),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id),
+    reviewerId: text("reviewer_id").references(() => users.id),
+    status: text("status").notNull().default("pending"),
+    rejectionReason: text("rejection_reason"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    check(
+      "delete_status_check",
+      sql`${table.status} IN ('pending', 'approved', 'rejected')`
+    ),
+  ]
+);
+
 // ── Categories ───────────────────────────────────────────────────────
 
 export const categories = sqliteTable("categories", {

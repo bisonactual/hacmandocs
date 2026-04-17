@@ -359,6 +359,10 @@ export default function DocumentPage() {
                 className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors">
                 Propose Edit
               </button>
+              <button type="button" onClick={() => navigate(`/documents/${id}/propose-delete`)}
+                className="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-1.5 text-sm font-medium text-red-400 hover:bg-red-500/20 transition-colors">
+                {isAdmin || user?.permissionLevel === "Approver" ? "Delete" : "Propose Delete"}
+              </button>
               {isAdmin && isUnpublished && (
                 <button type="button" onClick={handlePublish}
                   className="rounded-lg bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700 transition-colors">

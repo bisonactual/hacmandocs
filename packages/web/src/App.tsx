@@ -7,6 +7,7 @@ import AuthCallbackPage from "./pages/AuthCallbackPage";
 import DocumentPage from "./pages/DocumentPage";
 import ProposalPage from "./pages/ProposalPage";
 import ProposeEditPage from "./pages/ProposeEditPage";
+import ProposeDeletePage from "./pages/ProposeDeletePage";
 import CreateDocumentPage from "./pages/CreateDocumentPage";
 import SearchPage from "./pages/SearchPage";
 import AdminLayout from "./pages/admin/AdminLayout";
@@ -164,6 +165,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ProposeEditPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/documents/:id/propose-delete"
+          element={
+            <ProtectedRoute>
+              <ProposeDeletePage />
             </ProtectedRoute>
           }
         />

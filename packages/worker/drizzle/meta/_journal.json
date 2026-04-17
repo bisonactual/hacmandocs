@@ -78,6 +78,20 @@
       "when": 1776700000000,
       "tag": "0010_add_category_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1776800000000,
+      "tag": "0011_add_tool_docs_linking",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1776900000000,
+      "tag": "0012_add_delete_proposals",
+      "breakpoints": true
     }
   ]
 }
