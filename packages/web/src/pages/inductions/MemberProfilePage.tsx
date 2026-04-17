@@ -195,6 +195,9 @@ export default function MemberProfilePage() {
   const awaitingInduction = filteredAvailable.filter(
     (t) => t.passedPreInduction && !t.quizId,
   );
+  const refresherOnly = filteredAvailable.filter(
+    (t) => !t.quizId && !t.preInductionQuizId && t.refresherQuizId,
+  );
   const signoffOnly = filteredAvailable.filter(
     (t) => !t.quizId && !t.preInductionQuizId && !t.refresherQuizId,
   );
@@ -265,7 +268,7 @@ export default function MemberProfilePage() {
           <span className="text-lg">📋</span>
           <h3 className="text-lg font-semibold text-white">Available Training</h3>
         </div>
-        {availableQuizzes.length === 0 && signoffOnly.length === 0 && awaitingInduction.length === 0 ? (
+        {availableQuizzes.length === 0 && signoffOnly.length === 0 && awaitingInduction.length === 0 && refresherOnly.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
             <p className="text-sm text-hacman-muted">No training available — you've completed them all! 🎉</p>
           </div>
@@ -312,6 +315,30 @@ export default function MemberProfilePage() {
                     {quizRoleBadge("signoff")}
                   </div>
                   <p className="text-xs text-purple-400">Pre-induction passed. Contact a trainer to book your in-person session.</p>
+                </div>
+              </div>
+            ))}
+
+            {refresherOnly.map((tool) => (
+              <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4 transition hover:border-hacman-yellow/30">
+                <div className="flex items-center gap-3">
+                  <ToolName tool={tool} />
+                  {quizRoleBadge("refresher")}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to={`/inductions/quiz/${tool.refresherQuizId}`}
+                    className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-4 py-2 text-sm font-medium text-amber-400 hover:bg-amber-500/30 transition-colors"
+                  >
+                    Start Refresher
+                  </Link>
+                  <button
+                    onClick={() => markTrained(tool.id)}
+                    disabled={marking === tool.id}
+                    className="rounded-lg border border-hacman-gray px-3 py-2 text-sm text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors disabled:opacity-50"
+                  >
+                    {marking === tool.id ? "…" : "Mark Me Trained"}
+                  </button>
                 </div>
               </div>
             ))}

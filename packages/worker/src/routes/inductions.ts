@@ -248,6 +248,46 @@ inductionsApp.put("/tools/:id", requireAdminOrManager(), async (c) => {
     }
   }
 
+  // Auto-create docs page if tool has an area but no linked page
+  if (merged.areaId && !existing.docPageId) {
+    try {
+      const [area] = await db
+        .select({ name: toolAreas.name })
+        .from(toolAreas)
+        .where(eq(toolAreas.id, merged.areaId))
+        .limit(1);
+      if (area) {
+        let quizDescription: string | null = null;
+        const primaryQuizId = merged.quizId ?? merged.preInductionQuizId;
+        if (primaryQuizId) {
+          const [quiz] = await db
+            .select({ description: quizzes.description })
+            .from(quizzes)
+            .where(eq(quizzes.id, primaryQuizId))
+            .limit(1);
+          quizDescription = quiz?.description ?? null;
+        }
+        const session = c.get("session");
+        const docPageId = await ensureDocsPage({
+          db: c.env.DB,
+          toolId: id,
+          toolName: merged.name.trim(),
+          areaName: area.name,
+          quizDescription,
+          createdBy: session.userId,
+        });
+        if (docPageId) {
+          await db
+            .update(toolRecords)
+            .set({ docPageId, updatedAt: Math.floor(Date.now() / 1000) })
+            .where(eq(toolRecords.id, id));
+        }
+      }
+    } catch (err) {
+      console.error("[tool-docs] Failed to create docs page during tool update:", err);
+    }
+  }
+
   const [updated] = await db
     .select()
     .from(toolRecords)
