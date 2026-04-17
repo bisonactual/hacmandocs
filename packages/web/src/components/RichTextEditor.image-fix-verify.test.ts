@@ -67,11 +67,12 @@ describe('Task 4.1 Fix Verification: handlePaste uses Tiptap command API', () =>
     expect(handlePasteCode).toContain('editorRef');
   });
 
-  it('handlePaste should call uploadImageFile for image files', () => {
+  it('handlePaste should call uploadMediaFile for image files', () => {
     const handlePasteMatch = sourceCode.match(/handlePaste:\s*\([^)]*\)\s*=>\s*\{[\s\S]*?\n\s{8}\},/);
     expect(handlePasteMatch).not.toBeNull();
     const handlePasteCode = handlePasteMatch![0];
 
+    // handlePaste uses uploadImageFile (which delegates to uploadMediaFile)
     expect(handlePasteCode).toContain('uploadImageFile');
   });
 
@@ -130,9 +131,9 @@ describe('Task 4.2 Fix Verification: handleDrop uses Tiptap command API', () => 
     expect(handleDropMatch).not.toBeNull();
     const handleDropCode = handleDropMatch![0];
 
-    // posAtCoords should be called BEFORE the async uploadImageFile
+    // posAtCoords should be called BEFORE the async uploadMediaFile
     const posAtCoordsIndex = handleDropCode.indexOf('posAtCoords');
-    const uploadIndex = handleDropCode.indexOf('uploadImageFile');
+    const uploadIndex = handleDropCode.indexOf('uploadMediaFile');
     expect(posAtCoordsIndex).toBeGreaterThan(-1);
     expect(uploadIndex).toBeGreaterThan(-1);
     expect(posAtCoordsIndex).toBeLessThan(uploadIndex);
@@ -224,7 +225,7 @@ describe('Task 4.3 Fix Verification: Toolbar upload uses consistent async strate
 
   it('editor component shows uploading indicator when isUploading is true', () => {
     // Check for the uploading indicator in the render output
-    expect(sourceCode).toContain('Uploading image');
+    expect(sourceCode).toContain('Uploading media');
     expect(sourceCode).toContain('isUploading &&');
   });
 
