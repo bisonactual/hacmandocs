@@ -1,6 +1,6 @@
 import type { DocumentNode } from '@hacmandocs/shared';
 import { parseMarkdown } from '@hacmandocs/shared';
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/d1';
 import { categories, documents, toolRecords } from '../db/schema';
 import { extractPlainText } from '../routes/documents';
@@ -200,7 +200,7 @@ export async function ensureEquipmentCategory(
   const [existingWorkshop] = await db
     .select()
     .from(categories)
-    .where(and(eq(categories.name, 'Workshop Info'), isNull(categories.parentId)))
+    .where(and(sql`LOWER(${categories.name}) = LOWER(${'Workshop Info'})`, isNull(categories.parentId)))
     .limit(1);
 
   let workshopId: string;
@@ -221,7 +221,7 @@ export async function ensureEquipmentCategory(
   const [existingArea] = await db
     .select()
     .from(categories)
-    .where(and(eq(categories.name, areaName), eq(categories.parentId, workshopId)))
+    .where(and(sql`LOWER(${categories.name}) = LOWER(${areaName})`, eq(categories.parentId, workshopId)))
     .limit(1);
 
   let areaId: string;
@@ -242,7 +242,7 @@ export async function ensureEquipmentCategory(
   const [existingEquipment] = await db
     .select()
     .from(categories)
-    .where(and(eq(categories.name, 'Equipment'), eq(categories.parentId, areaId)))
+    .where(and(sql`LOWER(${categories.name}) = LOWER(${'Equipment'})`, eq(categories.parentId, areaId)))
     .limit(1);
 
   if (existingEquipment) {
