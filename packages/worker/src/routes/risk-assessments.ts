@@ -221,59 +221,13 @@ function parseGoogleDocHtml(html: string): RiskAssessmentContent {
   const tableRegex = /<table[\s\S]*?<\/table>/gi;
   const tableMatches = [...html.matchAll(tableRegex)];
 
-  for (const tableMatch of tableMatches) {
-    const tableHtml = tableMatch[0];
-    const trRegex = /<tr[\s\S]*?<\/tr>/gi;
-    const rowMatches = [...tableHtml.matchAll(trRegex)];
-    if (rowMatches.length < 2) continue;
+  const getCells = (rowHtml: string) => {
+    const cellRegex = /<t[dh][\s\S]*?<\/t[dh]>/gi;
+    return [...rowHtml.matchAll(cellRegex)].map((m) => htmlText(m[0]));
+  };
 
-    // Extract cells from a row
-    const getCells = (rowHtml: string) => {
-      const cellRegex = /<t[dh][\s\S]*?<\/t[dh]>/gi;
-      return [...rowHtml.matchAll(cellRegex)].map((m) => htmlText(m[0]));
-    };
-
-    const headerCells = getCells(rowMatches[0][0]);
-    const h = headerCells.map((c) => c.toLowerCase());
-    if (!h.some((c) => c === "hazard")) continue;
-
-    const colMap = {
-      hazard:    findColIdx(h, ["hazard"]),
-      who:       findColIdx(h, ["who", "who might be harmed"]),
-      l:         findColIdx(h, ["l", "likelihood"]),
-      s:         findColIdx(h, ["s", "severity"]),
-      rationale: findColIdx(h, ["rationale", "reason"]),
-      controls:  findColIdx(h, ["controls required", "controls", "control measures"]),
-      lwc:       findColIdx(h, ["lwc", "likelihood with controls"]),
-      swc:       findColIdx(h, ["swc", "severity with controls"]),
-    };
-
-    for (let r = 1; r < rowMatches.length; r++) {
-      const cells = getCells(rowMatches[r][0]);
-      const hazard = cells[colMap.hazard] ?? "";
-      if (!hazard) continue;
-      rows.push({
-        id: crypto.randomUUID(),
-        hazard,
-        who:                    cells[colMap.who] ?? "",
-        likelihood:             clamp15(cells[colMap.l] ?? ""),
-        severity:               clamp15(cells[colMap.s] ?? ""),
-        rationale:              cells[colMap.rationale] ?? "",
-        controls:               cells[colMap.controls] ?? "",
-        likelihoodWithControls: clamp15(cells[colMap.lwc] ?? ""),
-        severityWithControls:   clamp15(cells[colMap.swc] ?? ""),
-      });
-    }
-  }
-
-  // ── Parse metadata from paragraph text (strip tables first) ──
-  const noTables = html.replace(/<table[\s\S]*?<\/table>/gi, "");
-  const pRegex = /<p[ >][\s\S]*?<\/p>/gi;
-  for (const pMatch of noTables.matchAll(pRegex)) {
-    const line = htmlText(pMatch[0]);
-    if (!line) continue;
+  const applyMetaLine = (line: string) => {
     const lower = line.toLowerCase();
-
     if (lower.includes("induction required")) {
       const val = afterColon(line);
       inductionRequired = /yes|true/i.test(val);
@@ -290,6 +244,67 @@ function parseGoogleDocHtml(html: string): RiskAssessmentContent {
     } else if (/^review by/i.test(line)) {
       const m = splitMeta(afterColon(line)); reviewBy = m.name; reviewDate = m.date;
     }
+  };
+
+  for (const tableMatch of tableMatches) {
+    const tableHtml = tableMatch[0];
+    const trRegex = /<tr[\s\S]*?<\/tr>/gi;
+    const rowMatches = [...tableHtml.matchAll(trRegex)];
+    if (rowMatches.length < 1) continue;
+
+    const headerCells = getCells(rowMatches[0][0]);
+    const h = headerCells.map((c) => c.toLowerCase());
+
+    if (h.some((c) => c === "hazard")) {
+      // ── Hazard/risk table ──
+      if (rowMatches.length < 2) continue;
+      const colMap = {
+        hazard:    findColIdx(h, ["hazard"]),
+        who:       findColIdx(h, ["who", "who might be harmed"]),
+        l:         findColIdx(h, ["l", "likelihood"]),
+        s:         findColIdx(h, ["s", "severity"]),
+        rationale: findColIdx(h, ["rationale", "reason"]),
+        controls:  findColIdx(h, ["controls required", "controls", "control measures"]),
+        lwc:       findColIdx(h, ["lwc", "likelihood with controls"]),
+        swc:       findColIdx(h, ["swc", "severity with controls"]),
+      };
+      for (let r = 1; r < rowMatches.length; r++) {
+        const cells = getCells(rowMatches[r][0]);
+        const hazard = cells[colMap.hazard] ?? "";
+        if (!hazard) continue;
+        rows.push({
+          id: crypto.randomUUID(),
+          hazard,
+          who:                    cells[colMap.who] ?? "",
+          likelihood:             clamp15(cells[colMap.l] ?? ""),
+          severity:               clamp15(cells[colMap.s] ?? ""),
+          rationale:              cells[colMap.rationale] ?? "",
+          controls:               cells[colMap.controls] ?? "",
+          likelihoodWithControls: clamp15(cells[colMap.lwc] ?? ""),
+          severityWithControls:   clamp15(cells[colMap.swc] ?? ""),
+        });
+      }
+    } else {
+      // ── Metadata label/value table (2-column) ──
+      for (const rowMatch of rowMatches) {
+        const cells = getCells(rowMatch[0]);
+        if (cells.length >= 2) {
+          // "PPE Required:" in col 0, value in col 1
+          const combined = `${cells[0]}: ${cells[1]}`;
+          applyMetaLine(combined);
+        } else if (cells.length === 1) {
+          applyMetaLine(cells[0]);
+        }
+      }
+    }
+  }
+
+  // ── Parse metadata from paragraph text (strip tables first) ──
+  const noTables = html.replace(/<table[\s\S]*?<\/table>/gi, "");
+  const pRegex = /<p[ >][\s\S]*?<\/p>/gi;
+  for (const pMatch of noTables.matchAll(pRegex)) {
+    const line = htmlText(pMatch[0]);
+    if (line) applyMetaLine(line);
   }
 
   return { inductionRequired, inductionDetails, ppeRequired, beforeStarting, rows, createdBy, createdDate, updatedBy, updatedDate, reviewBy, reviewDate };
