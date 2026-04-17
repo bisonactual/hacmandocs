@@ -282,15 +282,17 @@ export async function findUnlinkedPageByTitle(
     linkedRows.map((r) => r.docPageId).filter((id): id is string => id != null),
   );
 
-  // Find all docs with matching title under the Equipment category
+  // Find all docs with matching title — search across all categories first,
+  // preferring the Equipment category, then falling back to any category
   const candidates = await db
     .select({
       id: documents.id,
       contentJson: documents.contentJson,
+      categoryId: documents.categoryId,
       updatedAt: documents.updatedAt,
     })
     .from(documents)
-    .where(and(eq(documents.title, title), eq(documents.categoryId, equipmentCategoryId)))
+    .where(eq(documents.title, title))
     .orderBy(desc(documents.updatedAt));
 
   // Filter out linked pages
@@ -298,14 +300,18 @@ export async function findUnlinkedPageByTitle(
 
   if (unlinked.length === 0) return null;
 
+  // Prefer pages in the target Equipment category
+  const inEquipment = unlinked.filter((doc) => doc.categoryId === equipmentCategoryId);
+  const selected = inEquipment.length > 0 ? inEquipment[0] : unlinked[0];
+
   if (unlinked.length > 1) {
     console.warn(
       `[tool-docs] Disambiguation: found ${unlinked.length} unlinked pages matching title "${title}". ` +
-      `IDs: ${unlinked.map((d) => d.id).join(', ')}. Selected: ${unlinked[0].id}`,
+      `IDs: ${unlinked.map((d) => d.id).join(', ')}. Selected: ${selected.id}`,
     );
   }
 
-  return unlinked[0];
+  return selected;
 }
 
 /**
@@ -354,6 +360,7 @@ export async function ensureDocsPage(params: {
         .update(documents)
         .set({
           contentJson: contentJsonStr,
+          categoryId: equipmentCategoryId,
           isPublished: 1,
           updatedAt: now,
         })
