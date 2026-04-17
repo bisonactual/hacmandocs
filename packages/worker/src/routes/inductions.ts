@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, or, lte, gt, isNotNull, _sql, count } from "drizzle-orm";
+import { eq, and, or, lte, gt, isNotNull, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireAdminOrManager } from "../middleware/rbac";
