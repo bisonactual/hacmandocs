@@ -55,10 +55,6 @@ function validateContent(c: unknown): { valid: true; content: RiskAssessmentCont
   if (!c || typeof c !== "object") return { valid: false, error: "content is required" };
   const content = c as Record<string, unknown>;
 
-  if (typeof content.ppeRequired !== "string" || !content.ppeRequired.trim())
-    return { valid: false, error: "ppeRequired is required" };
-  if (typeof content.beforeStarting !== "string" || !content.beforeStarting.trim())
-    return { valid: false, error: "beforeStarting is required" };
   if (!Array.isArray(content.rows) || content.rows.length === 0)
     return { valid: false, error: "at least one row is required" };
 
