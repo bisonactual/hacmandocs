@@ -16,6 +16,7 @@ import notificationsApp from "./routes/notifications";
 import inductionsApp from "./routes/inductions";
 import imagesApp from "./routes/images";
 import leaderboardApp from "./routes/leaderboard";
+import riskAssessmentsApp from "./routes/risk-assessments";
 import type { SessionData } from "./auth/session";
 import { authMiddleware, optionalAuthMiddleware } from "./middleware/auth";
 import { requireUsernameMiddleware } from "./middleware/require-username";
@@ -75,6 +76,7 @@ app.use("/api/categories", optionalAuthMiddleware);
 app.use("/api/search", optionalAuthMiddleware);
 app.use("/api/images/:key", optionalAuthMiddleware);
 app.use("/api/leaderboard", optionalAuthMiddleware);
+app.use("/api/risk-assessments/*", optionalAuthMiddleware);
 
 // All other /api/* routes require authentication
 app.use("/api/*", createMiddleware<Env>(async (c, next) => {
@@ -86,7 +88,8 @@ app.use("/api/*", createMiddleware<Env>(async (c, next) => {
     path.startsWith("/api/categories") ||
     path.startsWith("/api/search") ||
     path.startsWith("/api/images/") ||
-    path.startsWith("/api/leaderboard")
+    path.startsWith("/api/leaderboard") ||
+    path.startsWith("/api/risk-assessments")
   )) {
     await next();
     return;
@@ -112,6 +115,7 @@ app.route("/api/notifications", notificationsApp);
 app.route("/api/inductions", inductionsApp);
 app.route("/api/images", imagesApp);
 app.route("/api/leaderboard", leaderboardApp);
+app.route("/api/risk-assessments", riskAssessmentsApp);
 
 export default {
   fetch: app.fetch,

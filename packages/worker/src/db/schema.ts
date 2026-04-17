@@ -437,3 +437,28 @@ export const areaLeaders = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.userId, table.areaId] })]
 );
+
+// ── Risk Assessments ─────────────────────────────────────────────────
+
+export const riskAssessments = sqliteTable(
+  "risk_assessments",
+  {
+    id: text("id").primaryKey(),
+    toolRecordId: text("tool_record_id")
+      .notNull()
+      .references(() => toolRecords.id),
+    contentJson: text("content_json").notNull(),
+    status: text("status").notNull().default("draft"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    publishedBy: text("published_by").references(() => users.id),
+    publishedAt: integer("published_at"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    deletedAt: integer("deleted_at"),
+  },
+  (table) => [
+    check("ra_status_check", sql`${table.status} IN ('draft', 'published')`),
+  ]
+);

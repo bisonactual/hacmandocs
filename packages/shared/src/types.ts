@@ -251,3 +251,45 @@ export interface AreaLeader {
   areaId: string;
   assignedAt: number;
 }
+
+// ── Risk Assessment types ─────────────────────────────────────────────
+
+export type RiskAssessmentStatus = 'draft' | 'published';
+
+export interface RiskAssessmentRow {
+  id: string;
+  hazard: string;
+  who: string;
+  likelihood: number;
+  severity: number;
+  rationale: string;
+  controls: string;
+  likelihoodWithControls: number;
+  severityWithControls: number;
+}
+
+export interface RiskAssessmentContent {
+  inductionRequired: boolean;
+  inductionDetails: string;
+  ppeRequired: string;
+  beforeStarting: string;
+  rows: RiskAssessmentRow[];
+  createdBy: string;
+  createdDate: string;
+  updatedBy: string;
+  updatedDate: string;
+  reviewBy: string;
+  reviewDate: string;
+}
+
+export interface RiskAssessment {
+  id: string;
+  toolRecordId: string;
+  content: RiskAssessmentContent;
+  status: RiskAssessmentStatus;
+  createdBy: string;
+  publishedBy: string | null;
+  publishedAt: number | null;
+  createdAt: number;
+  updatedAt: number;
+}

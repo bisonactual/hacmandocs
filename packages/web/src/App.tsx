@@ -21,6 +21,8 @@ import QuizTakingPage from "./pages/inductions/QuizTakingPage";
 import TrainerDashboardPage from "./pages/inductions/TrainerDashboardPage";
 import SignoffFormPage from "./pages/inductions/SignoffFormPage";
 import ChecklistPage from "./pages/inductions/ChecklistPage";
+import RiskAssessmentPage from "./pages/inductions/RiskAssessmentPage";
+import EditRiskAssessmentPage from "./pages/inductions/EditRiskAssessmentPage";
 import ToolsPage from "./pages/admin/ToolsPage";
 import QuizzesPage from "./pages/admin/QuizzesPage";
 import EditQuizDescriptionPage from "./pages/admin/EditQuizDescriptionPage";
@@ -222,6 +224,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ChecklistPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/inductions/risk-assessment/:toolId" element={<RiskAssessmentPage />} />
+        <Route
+          path="/inductions/risk-assessment/:toolId/edit"
+          element={
+            <ProtectedRoute>
+              <EditRiskAssessmentPage />
             </ProtectedRoute>
           }
         />
