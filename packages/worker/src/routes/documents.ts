@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
 import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
-import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers, toolRecords } from "../db/schema";
+import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers, toolRecords, editProposals, deleteProposals, notifications } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
 import { validateLockedEdit } from "../services/tool-docs";
 
@@ -473,7 +473,7 @@ documentsApp.put("/:id/restore", requireRole("Approver"), async (c) => {
 /**
  * DELETE /:id — Permanently delete a document (Admin only).
  * Only works on soft-deleted documents (recycle bin).
- * Also removes the FTS5 index entry.
+ * Cleans up all referencing rows (proposals, versions, visibility, notifications, FTS).
  */
 documentsApp.delete("/:id", requireRole("Admin"), async (c) => {
   const id = c.req.param("id");
@@ -493,13 +493,37 @@ documentsApp.delete("/:id", requireRole("Admin"), async (c) => {
     return c.json({ error: "Document must be in the recycle bin before permanent deletion. Soft-delete it first." }, 400);
   }
 
-  // Delete FTS entry first (before the document row is gone)
-  await c.env.DB.prepare(
-    "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
-  )
-    .bind(id)
-    .run();
+  // Delete FTS entry (may already be gone from soft-delete)
+  try {
+    const rowResult = await c.env.DB.prepare(
+      "SELECT rowid FROM documents WHERE id = ?",
+    ).bind(id).first<{ rowid: number }>();
+    if (rowResult) {
+      await c.env.DB.prepare(
+        "DELETE FROM document_fts WHERE rowid = ?",
+      ).bind(rowResult.rowid).run();
+    }
+  } catch {
+    // FTS entry may not exist
+  }
 
+  // Clean up all referencing rows before deleting the document
+  // Notifications reference edit_proposals, so delete those first
+  const proposalRows = await db
+    .select({ id: editProposals.id })
+    .from(editProposals)
+    .where(eq(editProposals.documentId, id));
+
+  for (const p of proposalRows) {
+    await db.delete(notifications).where(eq(notifications.proposalId, p.id));
+  }
+
+  await db.delete(editProposals).where(eq(editProposals.documentId, id));
+  await db.delete(deleteProposals).where(eq(deleteProposals.documentId, id));
+  await db.delete(documentVersions).where(eq(documentVersions.documentId, id));
+  await db.delete(documentVisibility).where(eq(documentVisibility.documentId, id));
+
+  // Now safe to delete the document
   await db.delete(documents).where(eq(documents.id, id));
 
   return c.json({ success: true });

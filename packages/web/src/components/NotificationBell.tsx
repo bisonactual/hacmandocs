@@ -60,6 +60,15 @@ export default function NotificationBell() {
 
   const count = items.length;
 
+  const dismissAll = async () => {
+    try {
+      await apiFetch("/api/notifications/read-all", { method: "PUT", body: JSON.stringify({}) });
+      setItems([]);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -80,8 +89,17 @@ export default function NotificationBell() {
 
       {open && (
         <div className="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-hacman-gray bg-hacman-dark shadow-xl shadow-black/40">
-          <div className="border-b border-hacman-gray px-3 py-2 text-sm font-medium text-gray-300">
-            Notifications
+          <div className="flex items-center justify-between border-b border-hacman-gray px-3 py-2">
+            <span className="text-sm font-medium text-gray-300">Notifications</span>
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={dismissAll}
+                className="text-xs text-hacman-yellow hover:underline"
+              >
+                Mark all as read
+              </button>
+            )}
           </div>
           {items.length === 0 ? (
             <p className="px-3 py-6 text-center text-xs text-hacman-muted">All clear — nothing to see here</p>

@@ -47,6 +47,10 @@ notificationsApp.get("/feed", requireRole("Viewer"), async (c) => {
     createdAt: number;
   }> = [];
 
+  // Load dismiss timestamp from KV
+  const dismissedAtStr = await c.env.SESSIONS.get(`dismiss:${session.userId}`);
+  const dismissedAt = dismissedAtStr ? parseInt(dismissedAtStr, 10) : 0;
+
   // 1. Existing proposal notifications (unread)
   const proposalNotifs = await db
     .select()
@@ -176,10 +180,35 @@ notificationsApp.get("/feed", requireRole("Viewer"), async (c) => {
     }
   }
 
-  // Sort by most recent first, cap at 20
+  // Sort by most recent first, filter dismissed, cap at 20
   feed.sort((a, b) => b.createdAt - a.createdAt);
+  const visible = dismissedAt > 0
+    ? feed.filter((item) => item.createdAt > dismissedAt)
+    : feed;
 
-  return c.json(feed.slice(0, 20));
+  return c.json(visible.slice(0, 20));
+});
+
+/**
+ * PUT /read-all — Dismiss all current notifications (Viewer+).
+ * Marks all DB notifications as read and stores a dismiss timestamp
+ * so computed feed items (cert expiry, pending proposals, etc.) are hidden.
+ */
+notificationsApp.put("/read-all", requireRole("Viewer"), async (c) => {
+  const session = c.get("session");
+  const db = drizzle(c.env.DB);
+  const now = Math.floor(Date.now() / 1000);
+
+  // Mark all DB notifications as read
+  await db
+    .update(notifications)
+    .set({ isRead: 1 })
+    .where(eq(notifications.userId, session.userId));
+
+  // Store dismiss timestamp in KV
+  await c.env.SESSIONS.put(`dismiss:${session.userId}`, String(now));
+
+  return c.json({ success: true });
 });
 
 /**

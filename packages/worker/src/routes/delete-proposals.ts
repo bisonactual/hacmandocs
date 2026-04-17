@@ -118,11 +118,18 @@ deleteProposalsApp.post("/", requireRole("Viewer"), async (c) => {
       .where(eq(documents.id, body.documentId));
 
     // Remove from FTS so it doesn't appear in search
-    await c.env.DB.prepare(
-      "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
-    )
-      .bind(body.documentId)
-      .run();
+    try {
+      const rowResult = await c.env.DB.prepare(
+        "SELECT rowid FROM documents WHERE id = ?",
+      ).bind(body.documentId).first<{ rowid: number }>();
+      if (rowResult) {
+        await c.env.DB.prepare(
+          "DELETE FROM document_fts WHERE rowid = ?",
+        ).bind(rowResult.rowid).run();
+      }
+    } catch {
+      // FTS entry may not exist — safe to ignore
+    }
 
     return c.json({ deleted: true, documentId: body.documentId });
   }
@@ -199,11 +206,18 @@ deleteProposalsApp.put("/:id/approve", requireRole("Approver"), async (c) => {
   const now = Math.floor(Date.now() / 1000);
 
   // Remove from FTS so it doesn't appear in search
-  await c.env.DB.prepare(
-    "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
-  )
-    .bind(proposal.documentId)
-    .run();
+  try {
+    const rowResult = await c.env.DB.prepare(
+      "SELECT rowid FROM documents WHERE id = ?",
+    ).bind(proposal.documentId).first<{ rowid: number }>();
+    if (rowResult) {
+      await c.env.DB.prepare(
+        "DELETE FROM document_fts WHERE rowid = ?",
+      ).bind(rowResult.rowid).run();
+    }
+  } catch {
+    // FTS entry may not exist — safe to ignore
+  }
 
   // Soft-delete document and mark proposal approved
   await db
