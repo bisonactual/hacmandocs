@@ -53,6 +53,7 @@ export const documents = sqliteTable("documents", {
     .references(() => users.id),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
+  deletedAt: integer("deleted_at"),
 });
 
 

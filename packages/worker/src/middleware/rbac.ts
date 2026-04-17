@@ -55,6 +55,28 @@ export function requireAdminOrManager() {
 }
 
 /**
+ * Returns Hono middleware that requires the user to be an Admin,
+ * Manager, or Approver.
+ *
+ * Used for docs-management routes (categories CRUD, export, etc.)
+ * where Approvers need access alongside Admins and Managers.
+ */
+export function requireDocsCurator() {
+  return createMiddleware<Env>(async (c, next) => {
+    const session = c.get("session");
+    if (
+      session.permissionLevel === "Admin" ||
+      session.permissionLevel === "Approver" ||
+      session.groupLevel === "Manager"
+    ) {
+      await next();
+      return;
+    }
+    return c.json({ error: "Insufficient permissions" }, 403);
+  });
+}
+
+/**
  * Returns Hono middleware that requires the user to be a trainer
  * (assigned to at least one tool via tool_trainers), an area leader,
  * or an Admin.

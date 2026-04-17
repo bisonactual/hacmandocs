@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireAdminOrManager } from "../middleware/rbac";
+import { requireDocsCurator } from "../middleware/rbac";
 import { categories, documents, categoryVisibility, visibilityGroups, visibilityGroupMembers } from "../db/schema";
 
 const GROUP_LEVEL_RANK: Record<string, number> = {
@@ -94,7 +94,7 @@ categoriesApp.get("/", async (c) => {
  * POST / — Create a category (Admin only).
  * Accepts: name, parentId (optional), sortOrder (optional, default 0).
  */
-categoriesApp.post("/", requireAdminOrManager(), async (c) => {
+categoriesApp.post("/", requireDocsCurator(), async (c) => {
   const body = await c.req.json<{
     name?: string;
     parentId?: string | null;
@@ -131,7 +131,7 @@ categoriesApp.post("/", requireAdminOrManager(), async (c) => {
  * PUT /:id — Update a category (Admin only).
  * Accepts: name, parentId, sortOrder.
  */
-categoriesApp.put("/:id", requireAdminOrManager(), async (c) => {
+categoriesApp.put("/:id", requireDocsCurator(), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{
     name?: string;
@@ -185,7 +185,7 @@ categoriesApp.put("/:id", requireAdminOrManager(), async (c) => {
  * DELETE /:id — Delete a category (Admin only).
  * Returns 400 if any documents reference this category (prevent orphaned documents).
  */
-categoriesApp.delete("/:id", requireAdminOrManager(), async (c) => {
+categoriesApp.delete("/:id", requireDocsCurator(), async (c) => {
   const id = c.req.param("id");
   const db = drizzle(c.env.DB);
 

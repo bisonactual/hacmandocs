@@ -53,7 +53,7 @@ searchApp.get("/", async (c) => {
   // We need to use raw SQL to match by rowid
   const placeholders = rowids.map(() => "?").join(",");
   const docRows = await c.env.DB.prepare(
-    `SELECT rowid, id, category_id, updated_at FROM documents WHERE rowid IN (${placeholders})`,
+    `SELECT rowid, id, category_id, updated_at FROM documents WHERE rowid IN (${placeholders}) AND deleted_at IS NULL`,
   )
     .bind(...rowids)
     .all<{ rowid: number; id: string; category_id: string | null; updated_at: number }>();

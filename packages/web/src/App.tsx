@@ -26,6 +26,7 @@ import QuizzesPage from "./pages/admin/QuizzesPage";
 import EditQuizDescriptionPage from "./pages/admin/EditQuizDescriptionPage";
 import AreasPage from "./pages/admin/AreasPage";
 import ProposalsPage from "./pages/admin/ProposalsPage";
+import RecycleBinPage from "./pages/admin/RecycleBinPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import SetUsernamePage from "./pages/SetUsernamePage";
 import { useAuth } from "./hooks/useAuth";
@@ -243,6 +244,7 @@ export default function App() {
           <Route path="quizzes" element={<QuizzesPage />} />
           <Route path="quizzes/:id/description" element={<EditQuizDescriptionPage />} />
           <Route path="proposals" element={<ProposalsPage />} />
+          <Route path="recycle-bin" element={<RecycleBinPage />} />
         </Route>
       </Route>
 

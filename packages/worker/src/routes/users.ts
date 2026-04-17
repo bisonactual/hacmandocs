@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
-import { requireRole, requireAdminOrManager } from "../middleware/rbac";
+import { requireRole, requireAdminOrManager, requireDocsCurator } from "../middleware/rbac";
 import { users } from "../db/schema";
 import { invalidateUserSessions } from "../auth/session";
 import type { GroupLevel, PermissionLevel } from "@hacmandocs/shared";
@@ -74,9 +74,9 @@ usersApp.put("/me/username", async (c) => {
 });
 
 /**
- * GET / — List all users (Admin or Manager).
+ * GET / — List all users (Admin, Manager, or Approver).
  */
-usersApp.get("/", requireAdminOrManager(), async (c) => {
+usersApp.get("/", requireDocsCurator(), async (c) => {
   const db = drizzle(c.env.DB);
   const rows = await db.select().from(users);
   return c.json(rows);

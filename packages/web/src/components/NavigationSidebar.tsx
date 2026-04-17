@@ -337,7 +337,7 @@ export default function NavigationSidebar({ onNavigate }: { onNavigate?: () => v
       )}
 
       {/* Admin link */}
-      {user?.permissionLevel === "Admin" && (
+      {(user?.permissionLevel === "Admin" || user?.permissionLevel === "Approver" || user?.groupLevel === "Manager") && (
         <div className="border-t border-hacman-gray p-2">
           <NavLink
             to="/admin"

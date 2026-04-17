@@ -79,7 +79,7 @@ export default function ProposeDeletePage() {
         </h2>
         <p className="text-sm text-hacman-muted mb-4">
           {isAdminOrApprover
-            ? "This will permanently delete the document. This action cannot be undone."
+            ? "This will move the document to the recycle bin. It can be restored or permanently deleted from the admin panel."
             : "This will create a deletion request for an admin or approver to review."}
         </p>
 

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, isNull, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
@@ -68,7 +68,8 @@ documentsApp.get("/", async (c) => {
       createdAt: documents.createdAt,
       updatedAt: documents.updatedAt,
     })
-    .from(documents);
+    .from(documents)
+    .where(isNull(documents.deletedAt));
 
   // Admins see everything
   if (session?.permissionLevel === "Admin") {
@@ -134,13 +135,35 @@ documentsApp.get("/", async (c) => {
 });
 
 /**
+ * GET /recycle-bin — List soft-deleted documents (Admin/Approver only).
+ */
+documentsApp.get("/recycle-bin", requireRole("Approver"), async (c) => {
+  const db = drizzle(c.env.DB);
+
+  const rows = await db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      categoryId: documents.categoryId,
+      isSensitive: documents.isSensitive,
+      deletedAt: documents.deletedAt,
+      createdAt: documents.createdAt,
+      updatedAt: documents.updatedAt,
+    })
+    .from(documents)
+    .where(isNotNull(documents.deletedAt));
+
+  return c.json(rows);
+});
+
+/**
  * GET /:id — Get a single document by ID.
  * Checks document-level and category-level visibility before returning.
  */
 documentsApp.get("/:id", async (c) => {
   const id = c.req.param("id");
 
-  // Skip version history route — handled separately
+  // Skip named sub-routes — handled separately
   if (id === "versions") return;
 
   const db = drizzle(c.env.DB);
@@ -153,6 +176,15 @@ documentsApp.get("/:id", async (c) => {
 
   if (!doc) {
     return c.json({ error: "Document not found" }, 404);
+  }
+
+  // Soft-deleted docs are only visible to Admins/Approvers (recycle bin)
+  if (doc.deletedAt) {
+    const session2 = c.get("session") as import("../auth/session").SessionData | undefined;
+    const perm = session2?.permissionLevel;
+    if (perm !== "Admin" && perm !== "Approver") {
+      return c.json({ error: "Document not found" }, 404);
+    }
   }
 
   // Check visibility — unauthenticated users only see unrestricted docs
@@ -400,7 +432,47 @@ documentsApp.put("/:id/publish", requireRole("Admin"), async (c) => {
 });
 
 /**
- * DELETE /:id — Delete a document (Admin only).
+ * PUT /:id/restore — Restore a soft-deleted document (Admin/Approver).
+ */
+documentsApp.put("/:id/restore", requireRole("Approver"), async (c) => {
+  const id = c.req.param("id");
+  const db = drizzle(c.env.DB);
+
+  const [existing] = await db
+    .select()
+    .from(documents)
+    .where(eq(documents.id, id))
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ error: "Document not found" }, 404);
+  }
+
+  if (!existing.deletedAt) {
+    return c.json({ error: "Document is not in the recycle bin" }, 400);
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+
+  await db
+    .update(documents)
+    .set({ deletedAt: null, updatedAt: now })
+    .where(eq(documents.id, id));
+
+  // Re-index for FTS
+  const contentText = extractPlainText(JSON.parse(existing.contentJson) as DocumentNode);
+  await c.env.DB.prepare(
+    "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+  )
+    .bind(id, existing.title, contentText)
+    .run();
+
+  return c.json({ success: true });
+});
+
+/**
+ * DELETE /:id — Permanently delete a document (Admin only).
+ * Only works on soft-deleted documents (recycle bin).
  * Also removes the FTS5 index entry.
  */
 documentsApp.delete("/:id", requireRole("Admin"), async (c) => {
@@ -417,10 +489,8 @@ documentsApp.delete("/:id", requireRole("Admin"), async (c) => {
     return c.json({ error: "Document not found" }, 404);
   }
 
-  // Guard: prevent deleting linked docs pages
-  const linkedTool = await getLinkedToolRecord(c.env.DB, id);
-  if (linkedTool) {
-    return c.json({ error: "This page is linked to a tool record and cannot be deleted. Delete the tool record first to release this page." }, 400);
+  if (!existing.deletedAt) {
+    return c.json({ error: "Document must be in the recycle bin before permanent deletion. Soft-delete it first." }, 400);
   }
 
   // Delete FTS entry first (before the document row is gone)
@@ -436,7 +506,7 @@ documentsApp.delete("/:id", requireRole("Admin"), async (c) => {
 });
 
 /**
- * GET /:id/versions — Version history for a document (Viewer+).
+ * GET /:id — Get a single document by ID.
  * Returns all DocumentVersion entries ordered by version_number ascending.
  */
 documentsApp.get("/:id/versions", async (c) => {

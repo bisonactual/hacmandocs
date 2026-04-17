@@ -111,15 +111,18 @@ deleteProposalsApp.post("/", requireRole("Viewer"), async (c) => {
   const now = Math.floor(Date.now() / 1000);
 
   if (isAdminOrApprover) {
-    // Immediate deletion — Admin/Approver confirmed on the frontend
-    // Delete FTS entry first
+    // Immediate soft-delete — Admin/Approver confirmed on the frontend
+    await db
+      .update(documents)
+      .set({ deletedAt: now })
+      .where(eq(documents.id, body.documentId));
+
+    // Remove from FTS so it doesn't appear in search
     await c.env.DB.prepare(
       "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
     )
       .bind(body.documentId)
       .run();
-
-    await db.delete(documents).where(eq(documents.id, body.documentId));
 
     return c.json({ deleted: true, documentId: body.documentId });
   }
@@ -195,15 +198,18 @@ deleteProposalsApp.put("/:id/approve", requireRole("Approver"), async (c) => {
 
   const now = Math.floor(Date.now() / 1000);
 
-  // Delete FTS entry
+  // Remove from FTS so it doesn't appear in search
   await c.env.DB.prepare(
     "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
   )
     .bind(proposal.documentId)
     .run();
 
-  // Delete document and mark proposal approved
-  await db.delete(documents).where(eq(documents.id, proposal.documentId));
+  // Soft-delete document and mark proposal approved
+  await db
+    .update(documents)
+    .set({ deletedAt: now })
+    .where(eq(documents.id, proposal.documentId));
   await db
     .update(deleteProposals)
     .set({ status: "approved", reviewerId: session.userId, updatedAt: now })
