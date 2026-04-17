@@ -191,6 +191,7 @@ export function validateLockedEdit(
  */
 export async function ensureEquipmentCategory(
   rawDb: D1Database,
+  areaName: string,
 ): Promise<string> {
   const db = drizzle(rawDb);
   const now = Math.floor(Date.now() / 1000);
@@ -216,11 +217,32 @@ export async function ensureEquipmentCategory(
     });
   }
 
-  // Find or create "Equipment" child category
+  // Find or create the area category under Workshop Info (e.g. "Metalwork", "Visual Arts")
+  const [existingArea] = await db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.name, areaName), eq(categories.parentId, workshopId)))
+    .limit(1);
+
+  let areaId: string;
+  if (existingArea) {
+    areaId = existingArea.id;
+  } else {
+    areaId = crypto.randomUUID();
+    await db.insert(categories).values({
+      id: areaId,
+      name: areaName,
+      parentId: workshopId,
+      sortOrder: 0,
+      createdAt: now,
+    });
+  }
+
+  // Find or create "Equipment" child category under the area
   const [existingEquipment] = await db
     .select()
     .from(categories)
-    .where(and(eq(categories.name, 'Equipment'), eq(categories.parentId, workshopId)))
+    .where(and(eq(categories.name, 'Equipment'), eq(categories.parentId, areaId)))
     .limit(1);
 
   if (existingEquipment) {
@@ -231,7 +253,7 @@ export async function ensureEquipmentCategory(
   await db.insert(categories).values({
     id: equipmentId,
     name: 'Equipment',
-    parentId: workshopId,
+    parentId: areaId,
     sortOrder: 0,
     createdAt: now,
   });
@@ -295,13 +317,14 @@ export async function ensureDocsPage(params: {
   db: D1Database;
   toolId: string;
   toolName: string;
+  areaName: string;
   quizDescription: string | null;
   createdBy: string;
 }): Promise<string | null> {
-  const { db: rawDb, toolId, toolName, quizDescription, createdBy } = params;
+  const { db: rawDb, toolId, toolName, areaName, quizDescription, createdBy } = params;
 
   try {
-    const equipmentCategoryId = await ensureEquipmentCategory(rawDb);
+    const equipmentCategoryId = await ensureEquipmentCategory(rawDb, areaName);
     const orphanedPage = await findUnlinkedPageByTitle(rawDb, toolName, equipmentCategoryId);
     const db = drizzle(rawDb);
     const now = Math.floor(Date.now() / 1000);

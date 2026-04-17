@@ -87,33 +87,43 @@ inductionsApp.post("/tools", requireAdminOrManager(), async (c) => {
     throw err;
   }
 
-  // Auto-create docs page (non-blocking)
-  try {
-    let quizDescription: string | null = null;
-    if (body.quizId) {
-      const [quiz] = await db
-        .select({ description: quizzes.description })
-        .from(quizzes)
-        .where(eq(quizzes.id, body.quizId))
+  // Auto-create docs page (non-blocking) — requires an area
+  if (body.areaId) {
+    try {
+      let quizDescription: string | null = null;
+      if (body.quizId) {
+        const [quiz] = await db
+          .select({ description: quizzes.description })
+          .from(quizzes)
+          .where(eq(quizzes.id, body.quizId))
+          .limit(1);
+        quizDescription = quiz?.description ?? null;
+      }
+      const [area] = await db
+        .select({ name: toolAreas.name })
+        .from(toolAreas)
+        .where(eq(toolAreas.id, body.areaId))
         .limit(1);
-      quizDescription = quiz?.description ?? null;
+      if (area) {
+        const session = c.get("session");
+        const docPageId = await ensureDocsPage({
+          db: c.env.DB,
+          toolId,
+          toolName: body.name!.trim(),
+          areaName: area.name,
+          quizDescription,
+          createdBy: session.userId,
+        });
+        if (docPageId) {
+          await db
+            .update(toolRecords)
+            .set({ docPageId, updatedAt: Math.floor(Date.now() / 1000) })
+            .where(eq(toolRecords.id, toolId));
+        }
+      }
+    } catch (err) {
+      console.error("[tool-docs] Failed to create docs page during tool creation:", err);
     }
-    const session = c.get("session");
-    const docPageId = await ensureDocsPage({
-      db: c.env.DB,
-      toolId,
-      toolName: body.name!.trim(),
-      quizDescription,
-      createdBy: session.userId,
-    });
-    if (docPageId) {
-      await db
-        .update(toolRecords)
-        .set({ docPageId, updatedAt: Math.floor(Date.now() / 1000) })
-        .where(eq(toolRecords.id, toolId));
-    }
-  } catch (err) {
-    console.error("[tool-docs] Failed to create docs page during tool creation:", err);
   }
 
   return c.json({ success: true }, 201);
@@ -311,6 +321,10 @@ inductionsApp.post("/tools/:id/repair-link", requireAdminOrManager(), async (c) 
     return c.json({ error: "Tool record not found." }, 404);
   }
 
+  if (!tool.areaId) {
+    return c.json({ error: "Tool must have an area assigned to create a docs page." }, 400);
+  }
+
   try {
     let quizDescription: string | null = null;
     if (tool.quizId) {
@@ -321,11 +335,20 @@ inductionsApp.post("/tools/:id/repair-link", requireAdminOrManager(), async (c) 
         .limit(1);
       quizDescription = quiz?.description ?? null;
     }
+    const [area] = await db
+      .select({ name: toolAreas.name })
+      .from(toolAreas)
+      .where(eq(toolAreas.id, tool.areaId))
+      .limit(1);
+    if (!area) {
+      return c.json({ error: "Tool area not found." }, 400);
+    }
     const session = c.get("session");
     const docPageId = await ensureDocsPage({
       db: c.env.DB,
       toolId: id,
       toolName: tool.name,
+      areaName: area.name,
       quizDescription,
       createdBy: session.userId,
     });

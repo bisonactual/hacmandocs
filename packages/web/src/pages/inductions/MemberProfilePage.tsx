@@ -70,7 +70,7 @@ interface ProfileData {
 function ToolName({ tool }: { tool: { name: string; docPageId: string | null; docPagePublished?: boolean } }) {
   if (tool.docPageId && tool.docPagePublished === true) {
     return (
-      <Link to={`/docs/${tool.docPageId}`} className="font-medium text-white hover:text-hacman-yellow transition-colors underline decoration-hacman-gray hover:decoration-hacman-yellow">
+      <Link to={`/documents/${tool.docPageId}`} className="font-medium text-white hover:text-hacman-yellow transition-colors underline decoration-hacman-gray hover:decoration-hacman-yellow">
         {tool.name}
       </Link>
     );
