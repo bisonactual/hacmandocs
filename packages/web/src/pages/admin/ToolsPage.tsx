@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 
 interface ToolRow {
@@ -17,6 +18,7 @@ interface QuizOption { id: string; title: string; }
 interface AreaOption { id: string; name: string; }
 interface TrainerRow { userId: string; name: string; email: string; }
 interface UserRow { id: string; name: string; email: string; }
+interface RaStatus { toolRecordId: string; status: "draft" | "published"; }
 
 const emptyForm = {
   name: "", quizId: "", preInductionQuizId: "", refresherQuizId: "",
@@ -36,6 +38,7 @@ export default function ToolsPage() {
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
   const [repairStatus, setRepairStatus] = useState<Record<string, string>>({});
+  const [raStatuses, setRaStatuses] = useState<Record<string, "draft" | "published">>({});
 
   const load = () => {
     setLoading(true);
@@ -43,8 +46,16 @@ export default function ToolsPage() {
       apiFetch<ToolRow[]>("/api/inductions/tools"),
       apiFetch<QuizOption[]>("/api/inductions/quizzes"),
       apiFetch<AreaOption[]>("/api/inductions/areas"),
+      apiFetch<RaStatus[]>("/api/risk-assessments").catch(() => []),
     ])
-      .then(([t, q, a]) => { setTools(t); setQuizzes(q); setAreas(a); })
+      .then(([t, q, a, ra]) => {
+        setTools(t);
+        setQuizzes(q);
+        setAreas(a);
+        const map: Record<string, "draft" | "published"> = {};
+        ra.forEach((r) => { map[r.toolRecordId] = r.status; });
+        setRaStatuses(map);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   };
@@ -210,6 +221,7 @@ export default function ToolsPage() {
             <th className="py-2 pr-4">Online Induction</th>
             <th className="py-2 pr-4">Refresher</th>
             <th className="py-2 pr-4">Interval</th>
+            <th className="py-2 pr-4">Risk Assessment</th>
             <th className="py-2">Actions</th>
           </tr>
         </thead>
@@ -222,6 +234,17 @@ export default function ToolsPage() {
               <td className="py-2 pr-4 text-xs text-gray-400">{quizName(t.quizId)}</td>
               <td className="py-2 pr-4 text-xs text-gray-400">{quizName(t.refresherQuizId)}</td>
               <td className="py-2 pr-4 text-gray-400">{t.retrainingIntervalDays ? `${t.retrainingIntervalDays}d` : "—"}</td>
+              <td className="py-2 pr-4">
+                <Link to={`/inductions/risk-assessment/${t.id}`} className="inline-flex items-center gap-1.5 text-xs hover:underline">
+                  {raStatuses[t.id] === "published" ? (
+                    <><span className="h-2 w-2 rounded-full bg-green-400" /><span className="text-green-400">Published</span></>
+                  ) : raStatuses[t.id] === "draft" ? (
+                    <><span className="h-2 w-2 rounded-full bg-amber-400" /><span className="text-amber-400">Draft</span></>
+                  ) : (
+                    <><span className="h-2 w-2 rounded-full bg-gray-600" /><span className="text-gray-500">None</span></>
+                  )}
+                </Link>
+              </td>
               <td className="flex gap-2 py-2">
                 <button onClick={() => handleEdit(t)} className="text-hacman-yellow hover:underline text-xs">Edit</button>
                 <button onClick={() => openTrainers(t.id)} className="text-green-400 hover:underline text-xs">Trainers</button>

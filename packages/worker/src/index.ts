@@ -76,6 +76,7 @@ app.use("/api/categories", optionalAuthMiddleware);
 app.use("/api/search", optionalAuthMiddleware);
 app.use("/api/images/:key", optionalAuthMiddleware);
 app.use("/api/leaderboard", optionalAuthMiddleware);
+app.use("/api/risk-assessments", optionalAuthMiddleware);
 app.use("/api/risk-assessments/*", optionalAuthMiddleware);
 
 // All other /api/* routes require authentication

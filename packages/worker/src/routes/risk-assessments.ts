@@ -93,6 +93,23 @@ function validateContent(c: unknown): { valid: true; content: RiskAssessmentCont
   };
 }
 
+// ── GET /risk-assessments ─────────────────────────────────────────────
+// List RA status for all tools (id, toolRecordId, status). Public.
+
+raApp.get("/", async (c) => {
+  const db = drizzle(c.env.DB);
+  const rows = await db
+    .select({
+      id: riskAssessments.id,
+      toolRecordId: riskAssessments.toolRecordId,
+      status: riskAssessments.status,
+      updatedAt: riskAssessments.updatedAt,
+    })
+    .from(riskAssessments)
+    .where(isNull(riskAssessments.deletedAt));
+  return c.json(rows);
+});
+
 // ── GET /risk-assessments/:toolId ─────────────────────────────────────
 // Public if published; requires auth to see draft.
 

@@ -20,6 +20,7 @@ const MANAGER_ALLOWED_ROUTES = [
   "/admin/areas",
   "/admin/tools",
   "/admin/quizzes",
+  "/admin/risk-assessments",
 ];
 
 export default function AdminLayout() {
@@ -89,6 +90,7 @@ export default function AdminLayout() {
         { to: "/admin/areas", label: "Areas" },
         { to: "/admin/tools", label: "Tools" },
         { to: "/admin/quizzes", label: "Quizzes & Information" },
+        { to: "/admin/risk-assessments/import", label: "Import Risk Assessments" },
       ]
     : [];
 
