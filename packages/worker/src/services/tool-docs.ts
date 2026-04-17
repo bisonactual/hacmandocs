@@ -367,14 +367,18 @@ export async function ensureDocsPage(params: {
         .where(eq(documents.id, orphanedPage.id));
 
       // Sync FTS
-      await rawDb
-        .prepare('DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)')
-        .bind(orphanedPage.id)
-        .run();
-      await rawDb
-        .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
-        .bind(orphanedPage.id, toolName, contentText)
-        .run();
+      try {
+        await rawDb
+          .prepare('DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)')
+          .bind(orphanedPage.id)
+          .run();
+        await rawDb
+          .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
+          .bind(orphanedPage.id, toolName, contentText)
+          .run();
+      } catch (ftsErr) {
+        console.warn('[tool-docs] FTS sync failed during re-link (non-fatal):', ftsErr);
+      }
 
       // Link tool record to the page
       await db
