@@ -142,11 +142,12 @@ export default function ToolsPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
-        <p className="text-sm text-gray-400">Manage tools and machines. Each tool can have a pre-induction quiz, an online induction quiz, a refresher quiz, and in-person signoff checklists. You can also attach a quiz/info entry with "No induction needed" ticked to provide information and docs without requiring certification. Assign trainers to control who can sign off inductions.</p>
+        <p className="text-sm text-gray-400">Manage tools and machines. Each tool can have a pre-induction quiz, an online induction quiz, a refresher quiz, and in-person signoff checklists. Assign trainers to control who can sign off inductions.</p>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
+      <p className="text-xs text-hacman-muted">You can add information for a tool by selecting a quiz here and ticking no induction required.</p>
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 rounded-lg border border-hacman-gray p-4">
         <div>
           <label className="block text-xs text-hacman-muted">Name</label>
@@ -189,9 +190,8 @@ export default function ToolsPage() {
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-sm text-gray-200 cursor-pointer">
             <input type="checkbox" checked={form.noInductionNeeded} onChange={(e) => setForm({ ...form, noInductionNeeded: e.target.checked })} className="accent-hacman-yellow" />
-            No induction needed
+            No induction required
           </label>
-          <span className="text-xs text-hacman-muted">{form.noInductionNeeded && (form.quizId || form.preInductionQuizId) ? "Info/docs will be shown but no certification required" : "This tool does not require training or certification"}</span>
         </div>
         <button type="submit" className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark">
           {editingId ? "Update" : "Create"}
