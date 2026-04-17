@@ -146,7 +146,7 @@ function exportDoc(docId, toolNameOverride) {
     if (type === DocumentApp.ElementType.TABLE) {
       var table = child.asTable();
       var numRows = table.getNumRows();
-      if (numRows < 1) continue;
+      if (numRows < 2) continue;
 
       // Read header row to build column map
       var headerRow = table.getRow(0);
@@ -155,35 +155,8 @@ function exportDoc(docId, toolNameOverride) {
         headers.push(headerRow.getCell(c).getText().trim().toLowerCase());
       }
 
-      // 2-column label/value metadata tables (PPE Required, Induction Required, etc.)
-      if (headers.indexOf("hazard") === -1) {
-        for (var r = 0; r < numRows; r++) {
-          var mrow = table.getRow(r);
-          if (mrow.getNumCells() < 2) continue;
-          var label = mrow.getCell(0).getText().trim();
-          var value = mrow.getCell(1).getText().trim();
-          var lowerLabel = label.toLowerCase();
-          if (lowerLabel.indexOf("induction required") !== -1) {
-            inductionRequired = /yes|true|required/i.test(value);
-            var detailMatch = value.replace(/^(yes|no|true|false)[^a-z]*/i, "").trim();
-            if (detailMatch) inductionDetails = detailMatch;
-          } else if (lowerLabel.indexOf("ppe") !== -1) {
-            ppeRequired = value;
-          } else if (lowerLabel.indexOf("before starting") !== -1) {
-            beforeStarting = value;
-          } else if (/^created by/i.test(label)) {
-            var meta = parseMeta(value);
-            createdBy = meta.name; createdDate = meta.date;
-          } else if (/^updated by/i.test(label)) {
-            var meta = parseMeta(value);
-            updatedBy = meta.name; updatedDate = meta.date;
-          } else if (/^review by/i.test(label)) {
-            var meta = parseMeta(value);
-            reviewBy = meta.name; reviewDate = meta.date;
-          }
-        }
-        continue;
-      }
+      // Only process tables that look like risk assessment tables
+      if (headers.indexOf("hazard") === -1) continue;
 
       colMap = {
         hazard:    findCol(headers, ["hazard"]),

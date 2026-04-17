@@ -43,6 +43,12 @@ export default function ImportRiskAssessmentsPage() {
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<PreviewItem[]>([]);
 
+  // URL import state
+  const [docUrl, setDocUrl] = useState("");
+  const [urlToolId, setUrlToolId] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlResult, setUrlResult] = useState<{ status: string; error?: string } | null>(null);
+
   useEffect(() => {
     apiFetch<ToolOption[]>("/api/inductions/tools").then(setTools).catch(() => {});
   }, []);
@@ -124,15 +130,84 @@ export default function ImportRiskAssessmentsPage() {
     }
   };
 
+  const handleUrlImport = async () => {
+    if (!docUrl.trim() || !urlToolId) return;
+    setUrlLoading(true);
+    setUrlResult(null);
+    try {
+      const res = await apiFetch<{ status: string; error?: string }>("/api/risk-assessments/import-url", {
+        method: "POST",
+        body: JSON.stringify({ url: docUrl.trim(), toolId: urlToolId }),
+      });
+      setUrlResult(res);
+    } catch (e: unknown) {
+      setUrlResult({ status: "error", error: e instanceof Error ? e.message : "Import failed" });
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
   const imported = results?.filter((r) => r.status === "imported").length ?? 0;
   const updated  = results?.filter((r) => r.status === "updated").length ?? 0;
   const errors   = results?.filter((r) => r.status === "error").length ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+
+      {/* ── Import from Google Doc URL ───────────────────────────── */}
+      <div className="space-y-4">
+        <h2 className="text-base font-semibold text-white">Import from Google Doc URL</h2>
+        <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
+          <p className="text-sm text-gray-400">
+            Paste a Google Doc URL and select the tool to import into. The document must be set to{" "}
+            <span className="text-gray-300">"Anyone with the link can view"</span>.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-64">
+            <label className="block text-xs text-hacman-muted mb-1">Google Doc URL</label>
+            <input
+              value={docUrl}
+              onChange={(e) => { setDocUrl(e.target.value); setUrlResult(null); }}
+              placeholder="https://docs.google.com/document/d/..."
+              className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-3 py-1.5 text-sm text-gray-200 placeholder-gray-700 focus:border-hacman-yellow/50 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-hacman-muted mb-1">Tool</label>
+            <select
+              value={urlToolId}
+              onChange={(e) => setUrlToolId(e.target.value)}
+              className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1.5 text-sm text-gray-200 focus:border-hacman-yellow/50 focus:outline-none"
+            >
+              <option value="">— select tool —</option>
+              {tools.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={handleUrlImport}
+            disabled={urlLoading || !docUrl.trim() || !urlToolId}
+            className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors disabled:opacity-50"
+          >
+            {urlLoading ? "Importing…" : "Import"}
+          </button>
+        </div>
+        {urlResult && (
+          <div className={`rounded-lg px-4 py-3 text-sm ${urlResult.status === "error" ? "border border-red-500/30 bg-red-500/10 text-red-400" : "border border-green-500/30 bg-green-500/10 text-green-400"}`}>
+            {urlResult.status === "imported" && "Imported successfully as draft."}
+            {urlResult.status === "updated" && "Existing risk assessment updated."}
+            {urlResult.status === "error" && (urlResult.error ?? "Import failed.")}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-hacman-gray/50" />
+
+      {/* ── Import from JSON ─────────────────────────────────────── */}
+      <div className="space-y-6">
       <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
         <p className="text-sm text-gray-400">
-          Paste the JSON output from the{" "}
+          Or paste the JSON output from the{" "}
           <code className="rounded bg-hacman-gray px-1 text-xs text-gray-300">export-google-docs-ra.gs</code>{" "}
           Google Apps Script. Tool names are matched automatically — assign them manually below if needed before importing.
         </p>
@@ -298,6 +373,7 @@ export default function ImportRiskAssessmentsPage() {
           )}
         </div>
       )}
+      </div> {/* end JSON import section */}
     </div>
   );
 }

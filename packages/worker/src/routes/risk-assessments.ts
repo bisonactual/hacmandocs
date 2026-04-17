@@ -167,6 +167,174 @@ raApp.post("/import", requireAdminOrManager(), async (c) => {
   return c.json({ results });
 });
 
+// ── POST /risk-assessments/import-url ────────────────────────────────
+// Fetch a public Google Doc by URL, parse it, and import. Admin/Manager only.
+
+function findColIdx(headers: string[], candidates: string[]): number {
+  for (const c of candidates) {
+    const i = headers.indexOf(c);
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function clamp15(val: string): number {
+  const n = parseInt(val, 10);
+  return isNaN(n) ? 3 : Math.max(1, Math.min(5, n));
+}
+
+function afterColon(line: string): string {
+  const i = line.indexOf(":");
+  return i !== -1 ? line.substring(i + 1).trim() : line.trim();
+}
+
+function splitMeta(text: string): { name: string; date: string } {
+  const parts = text.split(/,\s*|\s*[-–]\s*/);
+  return parts.length >= 2
+    ? { name: parts[0].trim(), date: parts.slice(1).join(", ").trim() }
+    : { name: text.trim(), date: "" };
+}
+
+function parseGoogleDocText(text: string): RiskAssessmentContent {
+  let inductionRequired = false;
+  let inductionDetails = "";
+  let ppeRequired = "";
+  let beforeStarting = "";
+  let createdBy = "", createdDate = "";
+  let updatedBy = "", updatedDate = "";
+  let reviewBy = "", reviewDate = "";
+  const rows: RiskAssessmentContent["rows"] = [];
+  let colMap: Record<string, number> | null = null;
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const lower = line.toLowerCase();
+
+    // Metadata from plain paragraphs
+    if (lower.includes("induction required")) {
+      const val = afterColon(line);
+      inductionRequired = /yes|true/i.test(val);
+      const detail = val.replace(/^(yes|no)[^a-z]*/i, "").trim();
+      if (detail) inductionDetails = detail;
+      continue;
+    }
+    if (lower.includes("ppe required") || lower.startsWith("ppe:")) {
+      ppeRequired = afterColon(line); continue;
+    }
+    if (lower.includes("before starting")) {
+      beforeStarting = afterColon(line); continue;
+    }
+    if (/^created by/i.test(line)) {
+      const m = splitMeta(afterColon(line)); createdBy = m.name; createdDate = m.date; continue;
+    }
+    if (/^updated by/i.test(line)) {
+      const m = splitMeta(afterColon(line)); updatedBy = m.name; updatedDate = m.date; continue;
+    }
+    if (/^review by/i.test(line)) {
+      const m = splitMeta(afterColon(line)); reviewBy = m.name; reviewDate = m.date; continue;
+    }
+
+    // Table rows are tab-separated in Google Docs plain-text export
+    if (!rawLine.includes("\t")) continue;
+    const cells = rawLine.split("\t").map((c) => c.trim());
+
+    if (!colMap) {
+      if (cells.some((c) => c.toLowerCase() === "hazard")) {
+        const h = cells.map((c) => c.toLowerCase());
+        colMap = {
+          hazard:    findColIdx(h, ["hazard"]),
+          who:       findColIdx(h, ["who", "who might be harmed"]),
+          l:         findColIdx(h, ["l", "likelihood"]),
+          s:         findColIdx(h, ["s", "severity"]),
+          rationale: findColIdx(h, ["rationale", "reason"]),
+          controls:  findColIdx(h, ["controls required", "controls", "control measures"]),
+          lwc:       findColIdx(h, ["lwc", "likelihood with controls"]),
+          swc:       findColIdx(h, ["swc", "severity with controls"]),
+        };
+      }
+      continue;
+    }
+
+    const hazard = cells[colMap.hazard] ?? "";
+    if (!hazard) continue;
+    rows.push({
+      id: crypto.randomUUID(),
+      hazard,
+      who:                    cells[colMap.who] ?? "",
+      likelihood:             clamp15(cells[colMap.l] ?? ""),
+      severity:               clamp15(cells[colMap.s] ?? ""),
+      rationale:              cells[colMap.rationale] ?? "",
+      controls:               cells[colMap.controls] ?? "",
+      likelihoodWithControls: clamp15(cells[colMap.lwc] ?? ""),
+      severityWithControls:   clamp15(cells[colMap.swc] ?? ""),
+    });
+  }
+
+  return { inductionRequired, inductionDetails, ppeRequired, beforeStarting, rows, createdBy, createdDate, updatedBy, updatedDate, reviewBy, reviewDate };
+}
+
+raApp.post("/import-url", requireAdminOrManager(), async (c) => {
+  const body = await c.req.json<{ url: string; toolId?: string; toolName?: string }>();
+
+  const docIdMatch = body.url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (!docIdMatch) return c.json({ error: "Invalid Google Doc URL — could not extract document ID." }, 400);
+  const docId = docIdMatch[1];
+
+  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+  let fetchRes: Response;
+  try {
+    fetchRes = await fetch(exportUrl);
+  } catch (e) {
+    return c.json({ error: `Failed to fetch document: ${String(e)}` }, 400);
+  }
+  if (!fetchRes.ok) {
+    return c.json({ error: `Google returned ${fetchRes.status} — make sure the doc is set to "Anyone with the link can view".` }, 400);
+  }
+
+  const text = await fetchRes.text();
+  const content = parseGoogleDocText(text);
+
+  const db = drizzle(c.env.DB);
+  const session = c.get("session");
+  const now = Math.floor(Date.now() / 1000);
+
+  let toolId = body.toolId;
+  if (!toolId && body.toolName) {
+    const allTools = await db.select().from(toolRecords);
+    const match = allTools.find((t) => t.name.toLowerCase() === body.toolName!.toLowerCase());
+    if (!match) return c.json({ error: `Tool "${body.toolName}" not found.` }, 404);
+    toolId = match.id;
+  }
+  if (!toolId) return c.json({ error: "toolId or toolName is required." }, 400);
+
+  const validation = validateContent(content);
+  if (!validation.valid) return c.json({ error: `Parsed document but content is invalid: ${validation.error}`, parsed: content }, 400);
+
+  const [existing] = await db
+    .select()
+    .from(riskAssessments)
+    .where(and(eq(riskAssessments.toolRecordId, toolId), isNull(riskAssessments.deletedAt)))
+    .limit(1);
+
+  if (existing) {
+    await db
+      .update(riskAssessments)
+      .set({ contentJson: JSON.stringify(validation.content), updatedAt: now })
+      .where(eq(riskAssessments.id, existing.id));
+    return c.json({ status: "updated", id: existing.id });
+  } else {
+    const id = crypto.randomUUID();
+    await db.insert(riskAssessments).values({
+      id, toolRecordId: toolId,
+      contentJson: JSON.stringify(validation.content),
+      status: "draft", createdBy: session.userId,
+      createdAt: now, updatedAt: now,
+    });
+    return c.json({ status: "imported", id });
+  }
+});
+
 // ── GET /risk-assessments ─────────────────────────────────────────────
 // List RA status for all tools (id, toolRecordId, status). Public.
 
