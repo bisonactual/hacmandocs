@@ -221,7 +221,6 @@ export default function ToolsPage() {
             <th className="py-2 pr-4">Online Induction</th>
             <th className="py-2 pr-4">Refresher</th>
             <th className="py-2 pr-4">Interval</th>
-            <th className="py-2 pr-4">Risk Assessment</th>
             <th className="py-2">Actions</th>
           </tr>
         </thead>
@@ -234,43 +233,26 @@ export default function ToolsPage() {
               <td className="py-2 pr-4 text-xs text-gray-400">{quizName(t.quizId)}</td>
               <td className="py-2 pr-4 text-xs text-gray-400">{quizName(t.refresherQuizId)}</td>
               <td className="py-2 pr-4 text-gray-400">{t.retrainingIntervalDays ? `${t.retrainingIntervalDays}d` : "—"}</td>
-              <td className="py-2 pr-4">
-                {raStatuses[t.id] === "published" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium text-green-400 border border-green-500/30">
-                      <span className="h-1.5 w-1.5 rounded-full bg-green-400" />Published
-                    </span>
-                    <Link to={`/inductions/risk-assessment/${t.id}/edit`} className="text-xs text-hacman-yellow hover:underline">Edit</Link>
-                  </div>
-                ) : raStatuses[t.id] === "draft" ? (
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400 border border-amber-500/30">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />Draft
-                    </span>
-                    <Link to={`/inductions/risk-assessment/${t.id}/edit`} className="text-xs text-hacman-yellow hover:underline">Edit</Link>
-                    <Link to={`/inductions/risk-assessment/${t.id}`} className="text-xs text-gray-400 hover:underline">View</Link>
-                  </div>
-                ) : (
-                  <Link
-                    to={`/inductions/risk-assessment/${t.id}/edit`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-dashed border-hacman-gray px-2 py-0.5 text-xs text-gray-500 hover:border-hacman-yellow/50 hover:text-hacman-yellow transition-colors"
-                  >
-                    + Create RA
-                  </Link>
-                )}
-              </td>
-              <td className="flex gap-2 py-2">
-                <button onClick={() => handleEdit(t)} className="text-hacman-yellow hover:underline text-xs">Edit</button>
-                <button onClick={() => openTrainers(t.id)} className="text-green-400 hover:underline text-xs">Trainers</button>
-                <button onClick={() => handleRepairLink(t.id)} disabled={repairStatus[t.id] === "repairing"} className="text-blue-400 hover:underline text-xs disabled:opacity-50">
-                  {repairStatus[t.id] === "repairing" ? "Repairing…" : repairStatus[t.id] === "linked" ? "Linked!" : repairStatus[t.id]?.startsWith("error:") ? repairStatus[t.id].slice(7) : "Repair Link"}
-                </button>
-                <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:underline text-xs">Delete</button>
+              <td className="py-2">
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  <button onClick={() => handleEdit(t)} className="text-hacman-yellow hover:underline text-xs">Edit</button>
+                  <button onClick={() => openTrainers(t.id)} className="text-green-400 hover:underline text-xs">Trainers</button>
+                  <button onClick={() => handleRepairLink(t.id)} disabled={repairStatus[t.id] === "repairing"} className="text-blue-400 hover:underline text-xs disabled:opacity-50">
+                    {repairStatus[t.id] === "repairing" ? "Repairing…" : repairStatus[t.id] === "linked" ? "Linked!" : repairStatus[t.id]?.startsWith("error:") ? repairStatus[t.id].slice(7) : "Repair Link"}
+                  </button>
+                  <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:underline text-xs">Delete</button>
+                  {raStatuses[t.id] === "published"
+                    ? <Link to={`/inductions/risk-assessment/${t.id}/edit`} className="text-green-400 hover:underline text-xs">● RA Live</Link>
+                    : raStatuses[t.id] === "draft"
+                    ? <Link to={`/inductions/risk-assessment/${t.id}/edit`} className="text-amber-400 hover:underline text-xs">● RA Draft</Link>
+                    : <Link to={`/inductions/risk-assessment/${t.id}/edit`} className="text-red-400 hover:underline text-xs">⚠ No RA</Link>
+                  }
+                </div>
               </td>
             </tr>
           ))}
           {tools.length === 0 && (
-            <tr><td colSpan={7} className="py-4 text-center text-hacman-muted">No tool records yet.</td></tr>
+            <tr><td colSpan={8} className="py-4 text-center text-hacman-muted">No tool records yet.</td></tr>
           )}
         </tbody>
       </table>

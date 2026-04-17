@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/api";
 
 interface ImportResult {
@@ -15,6 +15,24 @@ interface PendingItem {
   selectedToolId: string;
 }
 
+interface PreviewItem {
+  toolName: string;
+  content: unknown;
+  assignedToolId: string;
+}
+
+function parseItems(raw: string): PreviewItem[] | null {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const items: Array<{ toolName: string; content: unknown }> = Array.isArray(parsed.riskAssessments)
+      ? parsed.riskAssessments as Array<{ toolName: string; content: unknown }>
+      : parsed.toolName ? [{ toolName: parsed.toolName as string, content: parsed.content }] : [];
+    return items.map((i) => ({ toolName: i.toolName ?? "", content: i.content, assignedToolId: "" }));
+  } catch {
+    return null;
+  }
+}
+
 export default function ImportRiskAssessmentsPage() {
   const [json, setJson] = useState("");
   const [tools, setTools] = useState<ToolOption[]>([]);
@@ -23,37 +41,49 @@ export default function ImportRiskAssessmentsPage() {
   const [failed, setFailed] = useState<PendingItem[]>([]);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<PreviewItem[]>([]);
 
   useEffect(() => {
     apiFetch<ToolOption[]>("/api/inductions/tools").then(setTools).catch(() => {});
   }, []);
 
+  const jsonValid = useMemo(() => {
+    if (!json.trim()) return null;
+    return parseItems(json);
+  }, [json]);
+
+  const handleJsonChange = (val: string) => {
+    setJson(val);
+    setResults(null);
+    setFailed([]);
+    setError("");
+    const items = parseItems(val);
+    setPreview(items ?? []);
+  };
+
   const handleImport = async () => {
     setError(""); setResults(null); setFailed([]);
-    let parsed: unknown;
-    try { parsed = JSON.parse(json); } catch {
+    if (!jsonValid) {
       setError("Invalid JSON — check the output from the Google Apps Script.");
       return;
     }
     setLoading(true);
     try {
+      // Apply any pre-assigned tool IDs from the preview panel
+      const payload = preview.length > 0
+        ? { riskAssessments: preview.map((p) => ({ toolName: p.toolName, content: p.content, ...(p.assignedToolId ? { toolId: p.assignedToolId } : {}) })) }
+        : JSON.parse(json);
+
       const res = await apiFetch<{ results: ImportResult[] }>("/api/risk-assessments/import", {
         method: "POST",
-        body: JSON.stringify(parsed),
+        body: JSON.stringify(payload),
       });
       setResults(res.results);
-
-      // Pull out failed items so user can manually map them to tools
-      const body = parsed as Record<string, unknown>;
-      const items: Array<{ toolName: string; content: unknown }> =
-        Array.isArray(body.riskAssessments)
-          ? body.riskAssessments as Array<{ toolName: string; content: unknown }>
-          : [{ toolName: (body.toolName as string) ?? "", content: body.content }];
 
       const failedItems = res.results
         .filter((r) => r.status === "error")
         .map((r) => {
-          const match = items.find((i) => i.toolName === r.toolName);
+          const match = preview.find((i) => i.toolName === r.toolName);
           return { toolName: r.toolName, content: match?.content ?? null, selectedToolId: "" };
         })
         .filter((i) => i.content !== null) as PendingItem[];
@@ -103,8 +133,8 @@ export default function ImportRiskAssessmentsPage() {
       <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
         <p className="text-sm text-gray-400">
           Paste the JSON output from the{" "}
-          <code className="rounded bg-hacman-gray px-1 text-xs text-gray-300">export-google-sheets-ra.gs</code>{" "}
-          Google Apps Script. If any tool names don't match exactly, you can manually assign them below after importing.
+          <code className="rounded bg-hacman-gray px-1 text-xs text-gray-300">export-google-docs-ra.gs</code>{" "}
+          Google Apps Script. Tool names are matched automatically — assign them manually below if needed before importing.
         </p>
       </div>
 
@@ -114,12 +144,60 @@ export default function ImportRiskAssessmentsPage() {
         </label>
         <textarea
           value={json}
-          onChange={(e) => setJson(e.target.value)}
+          onChange={(e) => handleJsonChange(e.target.value)}
           rows={14}
           placeholder={'{\n  "riskAssessments": [\n    {\n      "toolName": "Angle Grinder",\n      "content": { ... }\n    }\n  ]\n}'}
           className="w-full rounded-lg border border-hacman-gray bg-hacman-black px-3 py-2 font-mono text-xs text-gray-200 placeholder-gray-700 focus:border-hacman-yellow/50 focus:outline-none"
         />
       </div>
+
+      {/* ── Pre-import tool assignment ───────────────────────────── */}
+      {preview.length > 0 && !results && (
+        <div className="rounded-xl border border-hacman-gray bg-hacman-dark overflow-hidden">
+          <div className="border-b border-hacman-gray px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-200">
+              {preview.length} risk assessment{preview.length > 1 ? "s" : ""} found
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Tool names are matched automatically by name. Override a tool assignment here if needed.
+            </p>
+          </div>
+          <div className="divide-y divide-hacman-gray/50">
+            {preview.map((p, i) => {
+              const autoMatch = tools.find((t) => t.name.toLowerCase() === p.toolName.toLowerCase());
+              return (
+                <div key={i} className="flex items-center gap-4 px-4 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-200">"{p.toolName}"</p>
+                    {autoMatch && !p.assignedToolId && (
+                      <p className="text-xs text-green-400">Auto-matched → {autoMatch.name}</p>
+                    )}
+                    {!autoMatch && !p.assignedToolId && (
+                      <p className="text-xs text-amber-400">No auto-match — assign below or import will fail</p>
+                    )}
+                  </div>
+                  <select
+                    value={p.assignedToolId}
+                    onChange={(e) => setPreview((prev) => prev.map((item, idx) =>
+                      idx === i ? { ...item, assignedToolId: e.target.value } : item
+                    ))}
+                    className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow/50 focus:outline-none"
+                  >
+                    <option value="">{autoMatch ? `Auto: ${autoMatch.name}` : "— assign tool —"}</option>
+                    {tools.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {json.trim() && jsonValid === null && (
+        <p className="text-sm text-red-400">Invalid JSON — check the output from the Google Apps Script.</p>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
@@ -128,13 +206,13 @@ export default function ImportRiskAssessmentsPage() {
       <div className="flex items-center gap-3">
         <button
           onClick={handleImport}
-          disabled={loading || !json.trim()}
+          disabled={loading || !json.trim() || jsonValid === null}
           className="rounded-lg bg-hacman-yellow px-5 py-2 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors disabled:opacity-50"
         >
           {loading ? "Importing…" : "Import"}
         </button>
         {json && (
-          <button onClick={() => { setJson(""); setResults(null); setFailed([]); setError(""); }}
+          <button onClick={() => { setJson(""); setResults(null); setFailed([]); setError(""); setPreview([]); }}
             className="text-sm text-gray-400 hover:text-gray-200 transition-colors">
             Clear
           </button>
