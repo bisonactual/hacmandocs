@@ -142,7 +142,7 @@ export default function ToolsPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
-        <p className="text-sm text-gray-400">Manage tools and machines. Each tool can have a pre-induction quiz, an online induction quiz, a refresher quiz, and in-person signoff checklists. Assign trainers to control who can sign off inductions.</p>
+        <p className="text-sm text-gray-400">Manage tools and machines. Each tool can have a pre-induction quiz, an online induction quiz, a refresher quiz, and in-person signoff checklists. You can also attach a quiz/info entry with "No induction needed" ticked to provide information and docs without requiring certification. Assign trainers to control who can sign off inductions.</p>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -160,7 +160,7 @@ export default function ToolsPage() {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-hacman-muted">Online Induction Quiz</label>
+          <label className="block text-xs text-hacman-muted">Online Induction Quiz / Info</label>
           <select value={form.quizId} onChange={(e) => setForm({ ...form, quizId: e.target.value })} className="rounded-lg border border-hacman-gray bg-hacman-black px-2 py-1 text-sm text-gray-200 focus:border-hacman-yellow focus:ring-hacman-yellow">
             <option value="">None</option>
             {quizzes.map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}
@@ -191,7 +191,7 @@ export default function ToolsPage() {
             <input type="checkbox" checked={form.noInductionNeeded} onChange={(e) => setForm({ ...form, noInductionNeeded: e.target.checked })} className="accent-hacman-yellow" />
             No induction needed
           </label>
-          <span className="text-xs text-hacman-muted">This tool does not require training or certification</span>
+          <span className="text-xs text-hacman-muted">{form.noInductionNeeded && (form.quizId || form.preInductionQuizId) ? "Info/docs will be shown but no certification required" : "This tool does not require training or certification"}</span>
         </div>
         <button type="submit" className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark">
           {editingId ? "Update" : "Create"}

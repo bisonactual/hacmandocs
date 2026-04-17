@@ -60,10 +60,12 @@ function markdownToHtml(md: string): string {
         continue;
       }
 
-      // List item
+      // Unordered list item
       if (/^[-*]\s+/.test(lt)) {
-        // Check if previous output was also a list item; if not, open <ul>
         const prev = output[output.length - 1];
+        if (prev && prev.startsWith("<oli>")) {
+          output.push("</ol>");
+        }
         if (!prev || !prev.startsWith("<li>")) {
           output.push("<ul>");
         }
@@ -71,11 +73,27 @@ function markdownToHtml(md: string): string {
         continue;
       }
 
+      // Ordered list item (e.g. "1. Item text")
+      if (/^\d+\.\s+/.test(lt)) {
+        const prev = output[output.length - 1];
+        if (!prev || !prev.startsWith("<oli>")) {
+          // Close any open unordered list first
+          if (prev && prev.startsWith("<li>")) {
+            output.push("</ul>");
+          }
+          output.push("<ol>");
+        }
+        output.push(`<oli>${inlineMarkdown(lt.replace(/^\d+\.\s+/, ""))}</oli>`);
+        continue;
+      }
+
       // Close any open list before adding a non-list element
       const prev = output[output.length - 1];
       if (prev && prev.startsWith("<li>")) {
-        // Find where the <ul> started and close it
         output.push("</ul>");
+      }
+      if (prev && prev.startsWith("<oli>")) {
+        output.push("</ol>");
       }
 
       // Regular paragraph
@@ -87,9 +105,12 @@ function markdownToHtml(md: string): string {
     if (last && last.startsWith("<li>")) {
       output.push("</ul>");
     }
+    if (last && last.startsWith("<oli>")) {
+      output.push("</ol>");
+    }
   }
 
-  return output.join("\n");
+  return output.join("\n").replace(/<oli>/g, "<li>").replace(/<\/oli>/g, "</li>");
 }
 
 /** Convert inline Markdown (bold, italic, images, links) to HTML */

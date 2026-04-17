@@ -8,12 +8,11 @@ import { apiFetch } from "../../lib/api";
 import RichTextEditor from "../../components/RichTextEditor";
 import type { RichTextEditorHandle } from "../../components/RichTextEditor";
 
-/** Restricted extensions for quiz descriptions — no Image, Table, codeBlock, orderedList */
+/** Restricted extensions for quiz descriptions — no Image, Table, codeBlock */
 const quizExtensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
     codeBlock: false,
-    orderedList: false,
     link: false, // Disable StarterKit's bundled Link to avoid duplicate
   }),
   Link.configure({ openOnClick: false }),
@@ -84,7 +83,7 @@ export default function EditQuizDescriptionPage() {
             onClick={() => navigate("/admin/quizzes")}
             className="text-sm text-hacman-yellow hover:underline"
           >
-            ← Back to Quizzes
+            ← Back to Quizzes & Information
           </button>
           <h2 className="mt-1 text-lg font-semibold text-white">
             Edit Description — {quiz.title}

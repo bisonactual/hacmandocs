@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq, and, or, lte, gt, isNotNull } from "drizzle-orm";
+import { eq, and, or, lte, gt, isNotNull, sql, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireAdminOrManager } from "../middleware/rbac";
@@ -412,7 +412,20 @@ inductionsApp.post("/tools/:id/repair-link", requireAdminOrManager(), async (c) 
  */
 inductionsApp.get("/quizzes", async (c) => {
   const db = drizzle(c.env.DB);
-  const rows = await db.select().from(quizzes);
+  const rows = await db
+    .select({
+      id: quizzes.id,
+      title: quizzes.title,
+      description: quizzes.description,
+      showWrongAnswers: quizzes.showWrongAnswers,
+      status: quizzes.status,
+      createdAt: quizzes.createdAt,
+      updatedAt: quizzes.updatedAt,
+      questionCount: count(questions.id),
+    })
+    .from(quizzes)
+    .leftJoin(questions, eq(questions.quizId, quizzes.id))
+    .groupBy(quizzes.id);
   return c.json(rows);
 });
 
@@ -641,8 +654,8 @@ inductionsApp.put("/quizzes/:id", requireAdminOrManager(), async (c) => {
 });
 
 /**
- * POST /quizzes/:id/publish — Publish a quiz (Admin only).
- * Rejects if the quiz has zero questions.
+ * POST /quizzes/:id/publish — Publish a quiz or info page (Admin only).
+ * Rejects if the entry has neither questions nor a description.
  */
 inductionsApp.post("/quizzes/:id/publish", requireAdminOrManager(), async (c) => {
   const id = c.req.param("id");
@@ -659,7 +672,7 @@ inductionsApp.post("/quizzes/:id/publish", requireAdminOrManager(), async (c) =>
   }
 
   if (quiz.status !== "draft") {
-    return c.json({ error: "Only draft quizzes can be published." }, 400);
+    return c.json({ error: "Only draft entries can be published." }, 400);
   }
 
   const quizQuestions = await db
@@ -667,9 +680,11 @@ inductionsApp.post("/quizzes/:id/publish", requireAdminOrManager(), async (c) =>
     .from(questions)
     .where(eq(questions.quizId, id));
 
-  if (quizQuestions.length === 0) {
+  const hasDescription = quiz.description && quiz.description.trim().length > 0;
+
+  if (quizQuestions.length === 0 && !hasDescription) {
     return c.json(
-      { error: "Cannot publish a quiz with no questions." },
+      { error: "Cannot publish an entry with no questions and no description. Add questions for a quiz, or a description for an info page." },
       400,
     );
   }

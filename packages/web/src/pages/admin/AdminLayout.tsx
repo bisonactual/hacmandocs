@@ -88,7 +88,7 @@ export default function AdminLayout() {
     ? [
         { to: "/admin/areas", label: "Areas" },
         { to: "/admin/tools", label: "Tools" },
-        { to: "/admin/quizzes", label: "Quizzes" },
+        { to: "/admin/quizzes", label: "Quizzes & Information" },
       ]
     : [];
 

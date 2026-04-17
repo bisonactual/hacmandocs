@@ -243,12 +243,12 @@ export default function QuizzesPage() {
     return [q.correctOptionIndex];
   };
 
-  if (loading) return <p className="text-hacman-muted">Loading quizzes…</p>;
+  if (loading) return <p className="text-hacman-muted">Loading quizzes & information…</p>;
 
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
-        <p className="text-sm text-gray-400">Create and manage quizzes for tool inductions. Quizzes can be used as online inductions, pre-induction assessments, or refresher courses. Publish a quiz to make it available to members.</p>
+        <p className="text-sm text-gray-400">Create and manage quizzes and information pages. Entries can be used as online inductions, pre-induction assessments, refresher courses, or standalone information pages (description only, no questions). Attach an entry to a tool on the Tools page — tick "No induction needed" if it's info-only.</p>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -308,6 +308,7 @@ export default function QuizzesPage() {
         <thead>
           <tr className="border-b border-hacman-gray text-hacman-muted">
             <th className="py-2 pr-4">Title</th>
+            <th className="py-2 pr-4">Type</th>
             <th className="py-2 pr-4">Status</th>
             <th className="py-2">Actions</th>
           </tr>
@@ -319,9 +320,15 @@ export default function QuizzesPage() {
                 <button onClick={() => loadQuestions(q.id)} className="text-hacman-yellow hover:underline">{q.title}</button>
               </td>
               <td className="py-2 pr-4">
+                <span className={`rounded px-2 py-0.5 text-xs ${(q.questionCount ?? 0) > 0 ? "bg-blue-500/20 text-blue-400" : "bg-purple-500/20 text-purple-400"}`}>
+                  {(q.questionCount ?? 0) > 0 ? `Quiz (${q.questionCount})` : "Info only"}
+                </span>
+              </td>
+              <td className="py-2 pr-4">
                 <span className={`rounded px-2 py-0.5 text-xs ${statusColors[q.status] ?? ""}`}>{q.status}</span>
               </td>
               <td className="flex gap-2 py-2">
+                <button onClick={() => navigate(`/admin/quizzes/${q.id}/description`)} className="text-xs text-blue-400 hover:underline">Description</button>
                 <button onClick={() => { setEditingQuiz(q); setEditTitle(q.title); setEditShowWrong(!!q.showWrongAnswers); }} className="text-xs text-hacman-yellow hover:underline">Edit</button>
                 {q.status === "draft" && <button onClick={() => publishQuiz(q.id)} className="text-xs text-green-400 hover:underline">Publish</button>}
                 {q.status === "published" && <button onClick={() => archiveQuiz(q.id)} className="text-xs text-amber-400 hover:underline">Archive</button>}
@@ -329,7 +336,7 @@ export default function QuizzesPage() {
             </tr>
           ))}
           {quizzes.length === 0 && (
-            <tr><td colSpan={3} className="py-4 text-center text-hacman-muted">No quizzes yet.</td></tr>
+            <tr><td colSpan={4} className="py-4 text-center text-hacman-muted">No quizzes or information pages yet.</td></tr>
           )}
         </tbody>
       </table>
