@@ -261,11 +261,15 @@ documentsApp.post("/", requireRole("Viewer"), async (c) => {
   });
 
   // Sync FTS5 index — use raw SQL since Drizzle doesn't support virtual tables
-  await c.env.DB.prepare(
-    "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
-  )
-    .bind(id, body.title.trim(), contentText)
-    .run();
+  try {
+    await c.env.DB.prepare(
+      "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+    )
+      .bind(id, body.title.trim(), contentText)
+      .run();
+  } catch {
+    // FTS sync failure is non-fatal
+  }
 
   // Assign visibility groups if provided (Admin/Manager only)
   if (
@@ -372,17 +376,21 @@ documentsApp.put("/:id", requireRole("Editor"), async (c) => {
       : extractPlainText(JSON.parse(existing.contentJson) as DocumentNode);
 
     // Delete old FTS entry and insert new one
-    await c.env.DB.prepare(
-      "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
-    )
-      .bind(id)
-      .run();
+    try {
+      await c.env.DB.prepare(
+        "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
+      )
+        .bind(id)
+        .run();
 
-    await c.env.DB.prepare(
-      "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
-    )
-      .bind(id, newTitle, newContentText)
-      .run();
+      await c.env.DB.prepare(
+        "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+      )
+        .bind(id, newTitle, newContentText)
+        .run();
+    } catch {
+      // FTS sync failure is non-fatal
+    }
   }
 
   const [updated] = await db
@@ -460,12 +468,16 @@ documentsApp.put("/:id/restore", requireRole("Approver"), async (c) => {
     .where(eq(documents.id, id));
 
   // Re-index for FTS
-  const contentText = extractPlainText(JSON.parse(existing.contentJson) as DocumentNode);
-  await c.env.DB.prepare(
-    "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
-  )
-    .bind(id, existing.title, contentText)
-    .run();
+  try {
+    const contentText = extractPlainText(JSON.parse(existing.contentJson) as DocumentNode);
+    await c.env.DB.prepare(
+      "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+    )
+      .bind(id, existing.title, contentText)
+      .run();
+  } catch {
+    // FTS sync failure is non-fatal
+  }
 
   return c.json({ success: true });
 });

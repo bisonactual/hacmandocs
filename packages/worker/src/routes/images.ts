@@ -2,8 +2,11 @@ import { Hono } from "hono";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
+const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
+const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;   // 5 MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;  // 50 MB
 
 const imagesApp = new Hono<Env>();
 
@@ -28,8 +31,10 @@ imagesApp.post("/upload", requireRole("Admin"), async (c) => {
     return c.json({ error: `Unsupported file type: ${f.type}` }, 400);
   }
 
-  if (f.size > MAX_SIZE) {
-    return c.json({ error: "File too large (max 5 MB)." }, 400);
+  const isVideo = ALLOWED_VIDEO_TYPES.includes(f.type);
+  const maxSize = isVideo ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  if (f.size > maxSize) {
+    return c.json({ error: `File too large (max ${isVideo ? "50" : "5"} MB).` }, 400);
   }
 
   const ext = f.name.split(".").pop()?.toLowerCase() || "bin";

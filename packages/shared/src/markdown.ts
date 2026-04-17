@@ -157,11 +157,20 @@ function convertBlockNode(node: RootContent): DocumentNode | null {
         content: node.children.map(convertTableRow),
       };
 
-    case 'html':
+    case 'html': {
+      // Detect <video> tags and convert to video node
+      const videoMatch = node.value.match(/^<video\s[^>]*src="([^"]*)"[^>]*>/);
+      if (videoMatch) {
+        return {
+          type: 'video',
+          attrs: { src: videoMatch[1] },
+        };
+      }
       return {
         type: 'paragraph',
         content: [{ type: 'text', text: node.value }],
       };
+    }
 
     default:
       return null;
@@ -324,6 +333,12 @@ function pmNodeToMdast(node: DocumentNode): RootContent | null {
 
     case 'horizontalRule':
       return { type: 'thematicBreak' };
+
+    case 'video':
+      return {
+        type: 'html',
+        value: `<video src="${(node.attrs?.src as string) ?? ''}" controls></video>`,
+      };
 
     case 'table':
       return {

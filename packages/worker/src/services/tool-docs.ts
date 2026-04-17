@@ -408,10 +408,14 @@ export async function ensureDocsPage(params: {
     });
 
     // Sync FTS
-    await rawDb
-      .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
-      .bind(docId, toolName, contentText)
-      .run();
+    try {
+      await rawDb
+        .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
+        .bind(docId, toolName, contentText)
+        .run();
+    } catch {
+      // FTS sync failure is non-fatal
+    }
 
     // Link tool record to the page
     await db
@@ -458,14 +462,18 @@ export async function syncDescription(params: {
     .where(eq(documents.id, docPageId));
 
   // Sync FTS
-  await rawDb
-    .prepare('DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)')
-    .bind(docPageId)
-    .run();
-  await rawDb
-    .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
-    .bind(docPageId, page.title, contentText)
-    .run();
+  try {
+    await rawDb
+      .prepare('DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)')
+      .bind(docPageId)
+      .run();
+    await rawDb
+      .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
+      .bind(docPageId, page.title, contentText)
+      .run();
+  } catch {
+    // FTS sync failure is non-fatal
+  }
 }
 
 /**
@@ -500,14 +508,18 @@ export async function syncRename(params: {
     .where(eq(documents.id, docPageId));
 
   // Sync FTS
-  await rawDb
-    .prepare('DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)')
-    .bind(docPageId)
-    .run();
-  await rawDb
-    .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
-    .bind(docPageId, newToolName, contentText)
-    .run();
+  try {
+    await rawDb
+      .prepare('DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)')
+      .bind(docPageId)
+      .run();
+    await rawDb
+      .prepare('INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)')
+      .bind(docPageId, newToolName, contentText)
+      .run();
+  } catch {
+    // FTS sync failure is non-fatal
+  }
 }
 
 /**

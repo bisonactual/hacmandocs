@@ -62,7 +62,11 @@ function ToolbarButton({
   );
 }
 
-async function uploadImageFile(file: File): Promise<string> {
+function isVideoFile(file: File): boolean {
+  return file.type.startsWith("video/");
+}
+
+async function uploadMediaFile(file: File): Promise<string> {
   const token = localStorage.getItem("session_token");
   const form = new FormData();
   form.append("file", file);
@@ -79,8 +83,12 @@ async function uploadImageFile(file: File): Promise<string> {
   }
 
   const { url } = (await res.json()) as { url: string };
-  // Return full URL so it works in the editor preview
   return resolveImageUrl(url, API_URL);
+}
+
+/** @deprecated Use uploadMediaFile instead */
+async function uploadImageFile(file: File): Promise<string> {
+  return uploadMediaFile(file);
 }
 
 /**
@@ -225,6 +233,37 @@ const DetailsSummaryNode = Node.create({
   },
 });
 
+// ── Custom TipTap Node: video ────────────────────────────────────────
+// Block node that renders an HTML5 <video> element with controls.
+const VideoNode = Node.create({
+  name: "video",
+  group: "block",
+  atom: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      title: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "video" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "video",
+      mergeAttributes(HTMLAttributes, {
+        controls: "true",
+        preload: "metadata",
+        class: "max-w-full rounded my-2",
+        style: "max-height: 480px",
+      }),
+    ];
+  },
+});
+
 function TableSizePicker({
   editor,
 }: {
@@ -305,18 +344,33 @@ function Toolbar({
   setIsUploading: (v: boolean) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
 
   if (!editor) return null;
 
   const insertImageFromFile = async (file: File) => {
     setIsUploading(true);
     try {
-      const src = await uploadImageFile(file);
+      const src = await uploadMediaFile(file);
       editor.chain().focus().setImage({ src }).run();
     } catch (err) {
       console.error("Image upload failed:", err);
       const url = window.prompt(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}\n\nEnter image URL manually:`);
       if (url) editor.chain().focus().setImage({ src: url }).run();
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const insertVideoFromFile = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const src = await uploadMediaFile(file);
+      editor.chain().focus().insertContent({ type: "video", attrs: { src } }).run();
+    } catch (err) {
+      console.error("Video upload failed:", err);
+      const url = window.prompt(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}\n\nEnter video URL manually:`);
+      if (url) editor.chain().focus().insertContent({ type: "video", attrs: { src: url } }).run();
     } finally {
       setIsUploading(false);
     }
@@ -358,6 +412,7 @@ function Toolbar({
 
   // Derive which capabilities the editor supports from its registered extensions
   const hasImage = editor.extensionManager.extensions.some((e) => e.name === "image");
+  const hasVideo = editor.extensionManager.extensions.some((e) => e.name === "video");
   const hasOrderedList = editor.extensionManager.extensions.some((e) => e.name === "orderedList");
   const hasCodeBlock = editor.extensionManager.extensions.some((e) => e.name === "codeBlock");
   const hasTable = editor.extensionManager.extensions.some((e) => e.name === "table");
@@ -442,6 +497,25 @@ function Toolbar({
           />
         </>
       )}
+      {hasVideo && (
+        <>
+          <ToolbarButton onClick={() => videoRef.current?.click()} title="Upload video">
+            🎬 Video
+          </ToolbarButton>
+          <input
+            ref={videoRef}
+            type="file"
+            accept="video/mp4,video/webm"
+            className="hidden"
+            aria-hidden="true"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) insertVideoFromFile(file);
+              e.target.value = "";
+            }}
+          />
+        </>
+      )}
 
       {/* Code block */}
       {hasCodeBlock && (
@@ -488,6 +562,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
       }),
       Link.configure({ openOnClick: false }),
       Image,
+      VideoNode,
       Table.configure({ resizable: false }),
       TableRow,
       TableCell,
@@ -527,29 +602,36 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
         },
         handleDrop: (view, event) => {
           const file = event.dataTransfer?.files[0];
-          if (file?.type.startsWith("image/")) {
-            event.preventDefault();
-            // Capture drop position immediately before async upload
-            const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-            setIsUploading(true);
-            uploadImageFile(file).then((src) => {
-              const ed = editorRef.current;
-              if (ed) {
-                // Move cursor to drop position (if available), then insert image
-                if (dropPos) {
-                  ed.chain().focus().setTextSelection(dropPos.pos).setImage({ src }).run();
-                } else {
-                  ed.chain().focus().setImage({ src }).run();
-                }
+          if (!file) return false;
+          const isImage = file.type.startsWith("image/");
+          const isVideo = isVideoFile(file);
+          if (!isImage && !isVideo) return false;
+
+          event.preventDefault();
+          const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          setIsUploading(true);
+          uploadMediaFile(file).then((src) => {
+            const ed = editorRef.current;
+            if (!ed) return;
+            if (isVideo) {
+              if (dropPos) {
+                ed.chain().focus().setTextSelection(dropPos.pos).insertContent({ type: "video", attrs: { src } }).run();
+              } else {
+                ed.chain().focus().insertContent({ type: "video", attrs: { src } }).run();
               }
-            }).catch((err) => {
-              console.error("Image drop upload failed:", err);
-            }).finally(() => {
-              setIsUploading(false);
-            });
-            return true;
-          }
-          return false;
+            } else {
+              if (dropPos) {
+                ed.chain().focus().setTextSelection(dropPos.pos).setImage({ src }).run();
+              } else {
+                ed.chain().focus().setImage({ src }).run();
+              }
+            }
+          }).catch((err) => {
+            console.error("Media drop upload failed:", err);
+          }).finally(() => {
+            setIsUploading(false);
+          });
+          return true;
         },
       },
       onUpdate: ({ editor: ed }) => {
@@ -601,7 +683,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
             {isUploading && (
               <div className="mb-2 flex items-center gap-2 rounded bg-hacman-gray/50 px-3 py-1.5 text-xs text-gray-400">
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
-                Uploading image…
+                Uploading media…
               </div>
             )}
             <EditorContent editor={editor} className="flex-1" />

@@ -229,12 +229,16 @@ async function importMarkdownContent(
     updatedAt: now,
   });
 
-  await rawDb
-    .prepare(
-      "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
-    )
-    .bind(id, title, contentText)
-    .run();
+  try {
+    await rawDb
+      .prepare(
+        "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+      )
+      .bind(id, title, contentText)
+      .run();
+  } catch {
+    // FTS sync failure is non-fatal
+  }
 
   report.importedCount++;
 }

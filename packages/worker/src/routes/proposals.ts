@@ -243,17 +243,21 @@ proposalsApp.put("/:id/approve", requireRole("Approver"), async (c) => {
   ]);
 
   // Sync FTS5 index
-  await c.env.DB.prepare(
-    "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
-  )
-    .bind(proposal.documentId)
-    .run();
+  try {
+    await c.env.DB.prepare(
+      "DELETE FROM document_fts WHERE rowid = (SELECT rowid FROM documents WHERE id = ?)",
+    )
+      .bind(proposal.documentId)
+      .run();
 
-  await c.env.DB.prepare(
-    "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
-  )
-    .bind(proposal.documentId, doc.title, contentText)
-    .run();
+    await c.env.DB.prepare(
+      "INSERT INTO document_fts(rowid, title, content_text) VALUES ((SELECT rowid FROM documents WHERE id = ?), ?, ?)",
+    )
+      .bind(proposal.documentId, doc.title, contentText)
+      .run();
+  } catch {
+    // FTS sync failure is non-fatal — search index may be stale until next edit
+  }
 
   // Return updated proposal
   const [updated] = await db
