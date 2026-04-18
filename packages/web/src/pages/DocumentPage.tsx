@@ -29,6 +29,12 @@ interface SiblingDoc {
   isSensitive: number;
 }
 
+interface LinkedTool {
+  id: string;
+  name: string;
+  docPageId: string | null;
+}
+
 interface TocEntry {
   id: string;
   text: string;
@@ -177,34 +183,8 @@ function renderNode(node: DocumentNode, key: number | string): React.ReactNode {
       return <th key={key} className="border border-hacman-gray bg-hacman-gray/50 px-3 py-2 font-semibold text-gray-200">{children}</th>;
     case "horizontalRule":
       return <hr key={key} className="my-4 border-hacman-gray" />;
-    case "trainingLink": {
-      const toolId = node.attrs?.toolId as string;
-      const toolName = node.attrs?.toolName as string;
-      return (
-        <div key={key} className="my-4 rounded-xl border border-hacman-gray bg-hacman-dark overflow-hidden">
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-hacman-muted mb-0.5">Tool Training</p>
-              <p className="text-sm font-medium text-gray-200">{toolName}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link
-                to={`/inductions/profile#tool-${toolId}`}
-                className="rounded-lg bg-hacman-yellow px-3 py-1.5 text-xs font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors"
-              >
-                View Training Status
-              </Link>
-              <Link
-                to={`/inductions/risk-assessment/${toolId}`}
-                className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition-colors"
-              >
-                ⚠ Risk Assessment
-              </Link>
-            </div>
-          </div>
-        </div>
-      );
-    }
+    case "trainingLink":
+      return null;
     default:
       return <div key={key}>{children}</div>;
   }
@@ -275,6 +255,7 @@ export default function DocumentPage() {
   const [category, setCategory] = useState<CategoryData | null>(null);
   const [allCategories, setAllCategories] = useState<CategoryData[]>([]);
   const [siblingDocs, setSiblingDocs] = useState<SiblingDoc[]>([]);
+  const [linkedTool, setLinkedTool] = useState<LinkedTool | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -287,9 +268,10 @@ export default function DocumentPage() {
       .then(async (d) => {
         setDoc(d);
         try {
-          const [cats, allDocs] = await Promise.all([
+          const [cats, allDocs, tools] = await Promise.all([
             apiFetch<CategoryData[]>("/api/categories"),
             apiFetch<SiblingDoc[]>("/api/documents"),
+            apiFetch<LinkedTool[]>("/api/inductions/tools").catch(() => []),
           ]);
           setAllCategories(cats);
           if (d.categoryId) {
@@ -299,6 +281,8 @@ export default function DocumentPage() {
           } else {
             setSiblingDocs(allDocs.filter((doc) => !doc.categoryId));
           }
+          const match = tools.find((t) => t.docPageId === d.id);
+          if (match) setLinkedTool(match);
         } catch {
           // non-critical
         }
@@ -405,6 +389,31 @@ export default function DocumentPage() {
             </div>
           )}
         </header>
+
+        {linkedTool && (
+          <div className="my-4 rounded-xl border border-hacman-gray bg-hacman-dark overflow-hidden">
+            <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-hacman-muted mb-0.5">Tool Training</p>
+                <p className="text-sm font-medium text-gray-200">{linkedTool.name}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  to={`/inductions/profile#tool-${linkedTool.id}`}
+                  className="rounded-lg bg-hacman-yellow px-3 py-1.5 text-xs font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors"
+                >
+                  View Training Status
+                </Link>
+                <Link
+                  to={`/inductions/risk-assessment/${linkedTool.id}`}
+                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/20 transition-colors"
+                >
+                  ⚠ Risk Assessment
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="max-w-none">
           {renderNode(content, "root")}
