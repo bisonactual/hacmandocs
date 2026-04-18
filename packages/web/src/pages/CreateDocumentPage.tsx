@@ -92,7 +92,7 @@ export default function CreateDocumentPage() {
         ← Back
       </button>
 
-      <h1 className="mb-4 text-2xl font-bold text-white">New Document</h1>
+      <h1 className="mb-4 text-2xl font-bold text-hacman-text">New Document</h1>
 
       {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
 

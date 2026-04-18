@@ -121,8 +121,8 @@ function renderNode(node: DocumentNode, key: number | string): React.ReactNode {
       const text = extractText(node);
       const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const sizes: Record<number, string> = {
-        1: "text-3xl font-bold mb-4 mt-6 text-white",
-        2: "text-2xl font-semibold mb-3 mt-5 text-white",
+        1: "text-3xl font-bold mb-4 mt-6 text-hacman-text",
+        2: "text-2xl font-semibold mb-3 mt-5 text-hacman-text",
         3: "text-xl font-semibold mb-2 mt-4 text-gray-200",
         4: "text-lg font-medium mb-2 mt-3 text-gray-200",
         5: "text-base font-medium mb-1 mt-2 text-gray-300",
@@ -335,7 +335,7 @@ export default function DocumentPage() {
             {doc.isSensitive === 1 && (
               <span className="text-amber-500" title="Sensitive document">🔒</span>
             )}
-            <h1 className="text-3xl font-bold text-white">{doc.title}</h1>
+            <h1 className="text-3xl font-bold text-hacman-text">{doc.title}</h1>
           </div>
           <div className="mt-2 flex flex-wrap gap-4 text-sm text-hacman-muted">
             {user?.permissionLevel === "Admin" ? (

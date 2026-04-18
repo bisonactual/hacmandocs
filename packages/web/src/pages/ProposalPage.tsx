@@ -121,7 +121,7 @@ export default function ProposalPage() {
         ← Back
       </button>
 
-      <h1 className="mb-1 text-2xl font-bold text-white">
+      <h1 className="mb-1 text-2xl font-bold text-hacman-text">
         Edit Proposal
         {docMeta && <span className="ml-2 text-lg font-normal text-hacman-muted">for "{docMeta.title}"</span>}
       </h1>
@@ -166,7 +166,7 @@ export default function ProposalPage() {
 
       {isPending && isApprover && !sensitiveReadOnly && (
         <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-4">
-          <h2 className="mb-3 text-lg font-semibold text-white">Review</h2>
+          <h2 className="mb-3 text-lg font-semibold text-hacman-text">Review</h2>
           <div className="mb-3">
             <label htmlFor="rejection-reason" className="mb-1 block text-sm text-gray-400">
               Rejection reason (required to reject):

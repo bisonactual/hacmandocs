@@ -85,7 +85,7 @@ export default function EditQuizDescriptionPage() {
           >
             ← Back to Quizzes & Information
           </button>
-          <h2 className="mt-1 text-lg font-semibold text-white">
+          <h2 className="mt-1 text-lg font-semibold text-hacman-text">
             Edit Description — {quiz.title}
           </h2>
         </div>

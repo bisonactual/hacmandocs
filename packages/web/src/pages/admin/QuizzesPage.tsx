@@ -264,7 +264,7 @@ export default function QuizzesPage() {
           Show wrong answers on fail
         </label>
         <button onClick={createQuiz} className="rounded-lg bg-hacman-yellow px-4 py-1.5 text-sm font-semibold text-hacman-black hover:bg-hacman-yellow-dark">Create Quiz</button>
-        <button onClick={() => setShowImport(!showImport)} className="rounded-lg bg-hacman-gray px-4 py-1.5 text-sm text-white hover:bg-hacman-gray/80">Import JSON</button>
+        <button onClick={() => setShowImport(!showImport)} className="rounded-lg bg-hacman-gray px-4 py-1.5 text-sm text-hacman-text hover:bg-hacman-gray/80">Import JSON</button>
         <p className="w-full text-xs text-hacman-muted">After creating, you'll be taken to the rich text description editor.</p>
       </div>
 

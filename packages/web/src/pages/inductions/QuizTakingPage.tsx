@@ -211,7 +211,7 @@ export default function QuizTakingPage() {
 
     return (
       <div className="mx-auto max-w-2xl space-y-6">
-        <h2 className="text-xl font-semibold text-white">{quiz.title} — Result</h2>
+        <h2 className="text-xl font-semibold text-hacman-text">{quiz.title} — Result</h2>
         {result.passed ? (
           <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-8 text-center">
             <p className="text-3xl mb-2">🎉</p>
@@ -251,7 +251,7 @@ export default function QuizTakingPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="text-xl font-semibold text-white">{quiz.title}</h2>
+      <h2 className="text-xl font-semibold text-hacman-text">{quiz.title}</h2>
       {quiz.description && (
         <div className="prose prose-invert prose-sm max-w-none rounded-xl border border-hacman-gray bg-hacman-dark p-4"
           dangerouslySetInnerHTML={{ __html: embedYouTubeVideos(markdownToHtml(quiz.description)) }} />

@@ -144,7 +144,7 @@ export default function RiskAssessmentPage() {
     return (
       <div className="mx-auto max-w-2xl py-12 text-center space-y-4">
         <div className="text-5xl">📋</div>
-        <h2 className="text-xl font-semibold text-white">No Risk Assessment Yet</h2>
+        <h2 className="text-xl font-semibold text-hacman-text">No Risk Assessment Yet</h2>
         <p className="text-hacman-muted">
           {tool ? `A risk assessment hasn't been created for ${tool.name} yet.` : "No risk assessment found for this tool."}
         </p>
@@ -177,7 +177,7 @@ export default function RiskAssessmentPage() {
         <div className="flex items-start justify-between gap-4 px-6 py-5 border-b border-hacman-gray">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className="text-2xl font-bold text-hacman-text">
                 {tool?.name ?? "Tool"} — Risk Assessment
               </h1>
               {isDraft ? (

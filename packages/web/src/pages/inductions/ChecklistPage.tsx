@@ -75,7 +75,7 @@ export default function ChecklistPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6 print:max-w-none print:p-0" data-print-area>
       <div className="flex items-center justify-between print:hidden">
-        <h2 className="text-xl font-semibold text-white">{data.tool.name} — Induction Checklist</h2>
+        <h2 className="text-xl font-semibold text-hacman-text">{data.tool.name} — Induction Checklist</h2>
         <div className="flex gap-2">
           {canEdit && (
             <button onClick={() => setEditing(!editing)}

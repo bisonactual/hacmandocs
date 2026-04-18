@@ -148,7 +148,7 @@ export default function SearchPage() {
   if (!query.trim()) {
     return (
       <div className="mx-auto max-w-3xl">
-        <h2 className="mb-4 text-xl font-semibold text-white">Browse Documentation</h2>
+        <h2 className="mb-4 text-xl font-semibold text-hacman-text">Browse Documentation</h2>
         <BrowseView />
       </div>
     );
@@ -156,7 +156,7 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h2 className="mb-4 text-xl font-semibold text-white">
+      <h2 className="mb-4 text-xl font-semibold text-hacman-text">
         Search results for "{query}"
       </h2>
 

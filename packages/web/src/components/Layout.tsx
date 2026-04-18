@@ -40,7 +40,7 @@ export default function Layout() {
               ref={hamburgerRef}
               type="button"
               onClick={toggle}
-              className="flex h-10 w-10 items-center justify-center rounded-md text-gray-300 hover:bg-hacman-gray hover:text-white transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-md text-gray-300 hover:bg-hacman-gray hover:text-hacman-text transition-colors"
               aria-label={isOpen ? "Close navigation" : "Open navigation"}
             >
               {isOpen ? (
@@ -54,7 +54,7 @@ export default function Layout() {
               )}
             </button>
           )}
-          <Link to="/" className="flex min-w-0 items-center gap-3 text-white hover:text-hacman-yellow transition-colors">
+          <Link to="/" className="flex min-w-0 items-center gap-3 text-hacman-text hover:text-hacman-yellow transition-colors">
             <HacmanLogo className="h-8 shrink-0" />
             <div className="hidden md:block">
               <span className="text-[10px] uppercase tracking-widest text-hacman-muted leading-none block">

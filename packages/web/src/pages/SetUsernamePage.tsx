@@ -28,7 +28,7 @@ export default function SetUsernamePage({ onComplete }: { onComplete: () => void
     <div className="flex min-h-screen items-center justify-center bg-hacman-black">
       <div className="w-full max-w-md space-y-6 rounded-xl border border-hacman-gray bg-hacman-dark p-8 shadow-2xl shadow-black/50">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-white">Set your hackspace username</h2>
+          <h2 className="text-xl font-semibold text-hacman-text">Set your hackspace username</h2>
           <p className="mt-2 text-sm text-hacman-muted">
             This should match your Hackspace Manchester membership username.
           </p>

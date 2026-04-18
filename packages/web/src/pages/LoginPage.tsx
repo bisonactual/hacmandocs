@@ -31,7 +31,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-hacman-black">
       <div className="w-full max-w-md space-y-6 rounded-xl border border-hacman-gray bg-hacman-dark p-8 shadow-2xl shadow-black/50">
         <div className="flex flex-col items-center gap-3">
-          <HacmanLogo className="h-10 text-white" />
+          <HacmanLogo className="h-10 text-hacman-text" />
           <p className="text-xs uppercase tracking-widest text-hacman-muted">
             Documentation &amp; Training Portal
           </p>

@@ -35,14 +35,14 @@ export default function LeaderboardPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 py-4">
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-white">🏆 Community Top 5</h1>
+        <h1 className="text-2xl font-bold text-hacman-text">🏆 Community Top 5</h1>
         <p className="mt-1 text-sm text-hacman-muted">Recognising our most active contributors</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
         {/* Top Editors */}
         <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-hacman-text">
             <span>📝</span> Top Editors
           </h2>
           {data.topEditors.length === 0 ? (
@@ -62,7 +62,7 @@ export default function LeaderboardPage() {
 
         {/* Top Trainers */}
         <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-5">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-white">
+          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-hacman-text">
             <span>👨‍🏫</span> Top Trainers
           </h2>
           {data.topTrainers.length === 0 ? (

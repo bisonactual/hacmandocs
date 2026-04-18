@@ -105,7 +105,7 @@ export default function AdminLayout() {
     <div className="flex gap-8">
       {/* Sidebar navigation */}
       <aside className="w-52 shrink-0">
-        <h2 className="mb-5 text-xl font-semibold text-white">Admin Panel</h2>
+        <h2 className="mb-5 text-xl font-semibold text-hacman-text">Admin Panel</h2>
         <nav className="space-y-5">
           {sections.map((section) => (
             <div key={section.label}>

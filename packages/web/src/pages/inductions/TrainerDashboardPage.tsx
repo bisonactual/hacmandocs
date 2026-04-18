@@ -80,7 +80,7 @@ export default function TrainerDashboardPage() {
     return (
       <div className="mx-auto max-w-2xl py-20 text-center space-y-4">
         <p className="text-4xl">🔧</p>
-        <h2 className="text-xl font-semibold text-white">You're not currently a trainer</h2>
+        <h2 className="text-xl font-semibold text-hacman-text">You're not currently a trainer</h2>
         <p className="text-hacman-muted">But we'd love your help! Contact a team leader in an area you're interested in to find out more.</p>
       </div>
     );
@@ -100,7 +100,7 @@ export default function TrainerDashboardPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-white">Trainer Dashboard</h2>
+      <h2 className="text-xl font-semibold text-hacman-text">Trainer Dashboard</h2>
 
       <div className="flex items-center gap-4">
         <nav className="flex gap-1 border-b border-hacman-gray">
@@ -130,7 +130,7 @@ export default function TrainerDashboardPage() {
             <p className="text-hacman-muted text-sm">No tools assigned to you yet.</p>
           ) : myTools.map((tool) => (
             <div key={tool.id} className="flex items-center justify-between rounded-xl border border-hacman-gray bg-hacman-dark px-5 py-4 transition hover:border-hacman-yellow/30">
-              <span className="font-medium text-white">{tool.name}</span>
+              <span className="font-medium text-hacman-text">{tool.name}</span>
               <div className="flex gap-2">
                 <Link to={`/inductions/signoff/${tool.id}`} className="rounded-lg bg-hacman-yellow px-3 py-1.5 text-xs font-semibold text-hacman-black hover:bg-hacman-yellow-dark transition-colors">New Signoff</Link>
                 <Link to={`/inductions/checklist/${tool.id}`} className="rounded-lg border border-hacman-gray px-3 py-1.5 text-xs text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors">Checklist</Link>

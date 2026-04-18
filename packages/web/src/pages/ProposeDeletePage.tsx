@@ -74,7 +74,7 @@ export default function ProposeDeletePage() {
   return (
     <div className="mx-auto max-w-lg py-8">
       <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-6">
-        <h2 className="text-xl font-bold text-white mb-1">
+        <h2 className="text-xl font-bold text-hacman-text mb-1">
           {isAdminOrApprover ? "Delete Document" : "Propose Deletion"}
         </h2>
         <p className="text-sm text-hacman-muted mb-4">

@@ -150,7 +150,7 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-white mb-1">Users</h3>
+        <h3 className="text-lg font-semibold text-hacman-text mb-1">Users</h3>
         <p className="text-sm text-gray-400">
           Manage user accounts, permissions, and hackspace usernames.
         </p>

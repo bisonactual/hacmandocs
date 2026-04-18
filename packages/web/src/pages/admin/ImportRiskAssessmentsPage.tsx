@@ -156,7 +156,7 @@ export default function ImportRiskAssessmentsPage() {
 
       {/* ── Import from Google Doc URL ───────────────────────────── */}
       <div className="space-y-4">
-        <h2 className="text-base font-semibold text-white">Import from Google Doc URL</h2>
+        <h2 className="text-base font-semibold text-hacman-text">Import from Google Doc URL</h2>
         <div className="rounded-xl border border-hacman-gray bg-hacman-dark px-4 py-3">
           <p className="text-sm text-gray-400">
             Paste a Google Doc URL and select the tool to import into. The document must be set to{" "}

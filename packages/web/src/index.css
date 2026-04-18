@@ -11,17 +11,19 @@
   --color-hacman-muted: #9CA3AF;
   --color-hacman-deeper: #0f0f0f;
   --color-hacman-border: #444444;
+  --color-hacman-text: #ffffff;
 
   --animate-slide-in-left: slide-in-left 0.2s ease-out;
 }
 
 :root.light {
-  --color-hacman-black: #ffffff;
+  --color-hacman-black: #f9fafb;
   --color-hacman-dark: #f3f4f6;
   --color-hacman-gray: #e5e7eb;
   --color-hacman-muted: #6b7280;
-  --color-hacman-deeper: #f9fafb;
+  --color-hacman-deeper: #eef0f2;
   --color-hacman-border: #9ca3af;
+  --color-hacman-text: #111827;
 
   --color-gray-200: #1f2937;
   --color-gray-300: #374151;

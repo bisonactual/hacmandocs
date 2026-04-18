@@ -43,7 +43,7 @@ function HomePage() {
     <div className="mx-auto max-w-4xl space-y-8 py-4">
       {/* Welcome banner */}
       <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-8">
-        <h2 className="text-2xl font-bold text-white">
+        <h2 className="text-2xl font-bold text-hacman-text">
           {user ? `Welcome back, ${user.name || user.email}` : "Welcome to HACMAN"}
         </h2>
         <p className="mt-2 text-hacman-muted">
@@ -74,7 +74,7 @@ function HomePage() {
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-hacman-yellow/10 text-xl">
               🎓
             </div>
-            <h3 className="font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+            <h3 className="font-semibold text-hacman-text group-hover:text-hacman-yellow transition-colors">
               My Training
             </h3>
             <p className="mt-1 text-sm text-hacman-muted">
@@ -89,7 +89,7 @@ function HomePage() {
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-hacman-yellow/10 text-xl">
               👨‍🏫
             </div>
-            <h3 className="font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+            <h3 className="font-semibold text-hacman-text group-hover:text-hacman-yellow transition-colors">
               Trainer Dashboard
             </h3>
             <p className="mt-1 text-sm text-hacman-muted">
@@ -104,7 +104,7 @@ function HomePage() {
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-hacman-yellow/10 text-xl">
               🔍
             </div>
-            <h3 className="font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+            <h3 className="font-semibold text-hacman-text group-hover:text-hacman-yellow transition-colors">
               Search Docs
             </h3>
             <p className="mt-1 text-sm text-hacman-muted">
@@ -117,7 +117,7 @@ function HomePage() {
       {/* Info cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Link to="/search" className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5">
-          <h3 className="flex items-center gap-2 font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+          <h3 className="flex items-center gap-2 font-semibold text-hacman-text group-hover:text-hacman-yellow transition-colors">
             <span className="text-hacman-yellow">📄</span> Documentation
           </h3>
           <p className="mt-2 text-sm text-hacman-muted">
@@ -125,7 +125,7 @@ function HomePage() {
           </p>
         </Link>
         <Link to={user ? "/inductions/profile" : "/login"} className="group rounded-xl border border-hacman-gray bg-hacman-dark p-5 transition-all hover:border-hacman-yellow/50 hover:shadow-lg hover:shadow-hacman-yellow/5">
-          <h3 className="flex items-center gap-2 font-semibold text-white group-hover:text-hacman-yellow transition-colors">
+          <h3 className="flex items-center gap-2 font-semibold text-hacman-text group-hover:text-hacman-yellow transition-colors">
             <span className="text-hacman-yellow">🔧</span> Tool Training
           </h3>
           <p className="mt-2 text-sm text-hacman-muted">

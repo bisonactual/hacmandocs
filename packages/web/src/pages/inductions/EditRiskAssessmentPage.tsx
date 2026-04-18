@@ -132,7 +132,7 @@ export default function EditRiskAssessmentPage() {
       {/* Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-hacman-text">
             {existing ? "Edit" : "Create"} Risk Assessment
           </h1>
           {tool && <p className="mt-1 text-sm text-hacman-muted">{tool.name}</p>}

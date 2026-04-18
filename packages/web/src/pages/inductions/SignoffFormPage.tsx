@@ -52,9 +52,9 @@ export default function SignoffFormPage() {
     return (
       <div className="mx-auto max-w-2xl py-12 text-center space-y-4">
         <p className="text-4xl">✅</p>
-        <h2 className="text-xl font-semibold text-white">Signoff Complete</h2>
+        <h2 className="text-xl font-semibold text-hacman-text">Signoff Complete</h2>
         <p className="text-gray-400">
-          Induction signoff for <span className="font-medium text-white">{inducteeFullName}</span> on <span className="font-medium text-white">{data.tool.name}</span> has been recorded.
+          Induction signoff for <span className="font-medium text-hacman-text">{inducteeFullName}</span> on <span className="font-medium text-hacman-text">{data.tool.name}</span> has been recorded.
         </p>
         {success.inducteeMatched ? (
           <p className="text-sm text-green-400">User account matched — certification created automatically.</p>
@@ -68,7 +68,7 @@ export default function SignoffFormPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="text-xl font-semibold text-white">Induction Signoff — {data.tool.name}</h2>
+      <h2 className="text-xl font-semibold text-hacman-text">Induction Signoff — {data.tool.name}</h2>
 
       {data.checklist.length > 0 && (
         <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-4">

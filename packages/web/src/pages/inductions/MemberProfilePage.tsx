@@ -70,12 +70,12 @@ interface ProfileData {
 function ToolName({ tool }: { tool: { name: string; docPageId: string | null; docPagePublished?: boolean } }) {
   if (tool.docPageId && tool.docPagePublished === true) {
     return (
-      <Link to={`/documents/${tool.docPageId}`} className="font-medium text-white hover:text-hacman-yellow transition-colors underline decoration-hacman-gray hover:decoration-hacman-yellow">
+      <Link to={`/documents/${tool.docPageId}`} className="font-medium text-hacman-text hover:text-hacman-yellow transition-colors underline decoration-hacman-gray hover:decoration-hacman-yellow">
         {tool.name}
       </Link>
     );
   }
-  return <span className="font-medium text-white">{tool.name}</span>;
+  return <span className="font-medium text-hacman-text">{tool.name}</span>;
 }
 
 /** Filter tools by search text (case-insensitive name match) and areaId */
@@ -205,7 +205,7 @@ export default function MemberProfilePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 pb-12">
       <div>
-        <h2 className="text-2xl font-bold text-white">My Training Profile</h2>
+        <h2 className="text-2xl font-bold text-hacman-text">My Training Profile</h2>
         <p className="mt-1 text-hacman-muted">Track your inductions, certifications, and refresher courses</p>
       </div>
 
@@ -241,12 +241,12 @@ export default function MemberProfilePage() {
           placeholder="Search tools by name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark px-4 py-2 text-sm text-white placeholder-hacman-muted focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow"
+          className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark px-4 py-2 text-sm text-hacman-text placeholder-hacman-muted focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow"
         />
         <select
           value={selectedAreaId}
           onChange={(e) => setSelectedAreaId(e.target.value)}
-          className="rounded-lg border border-hacman-gray bg-hacman-dark px-4 py-2 text-sm text-white focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow"
+          className="rounded-lg border border-hacman-gray bg-hacman-dark px-4 py-2 text-sm text-hacman-text focus:border-hacman-yellow focus:outline-none focus:ring-1 focus:ring-hacman-yellow"
         >
           <option value="">All Areas</option>
           {areas.map((area) => (
@@ -266,7 +266,7 @@ export default function MemberProfilePage() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <span className="text-lg">📋</span>
-          <h3 className="text-lg font-semibold text-white">Available Training</h3>
+          <h3 className="text-lg font-semibold text-hacman-text">Available Training</h3>
         </div>
         {availableQuizzes.length === 0 && signoffOnly.length === 0 && awaitingInduction.length === 0 && refresherOnly.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
@@ -366,7 +366,7 @@ export default function MemberProfilePage() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <span className="text-lg">✅</span>
-          <h3 className="text-lg font-semibold text-white">Active Certifications</h3>
+          <h3 className="text-lg font-semibold text-hacman-text">Active Certifications</h3>
         </div>
         {filteredCompleted.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
@@ -413,7 +413,7 @@ export default function MemberProfilePage() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <span className="text-lg">⚠️</span>
-          <h3 className="text-lg font-semibold text-white">Expired Certifications</h3>
+          <h3 className="text-lg font-semibold text-hacman-text">Expired Certifications</h3>
         </div>
         {filteredExpired.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">
@@ -458,7 +458,7 @@ export default function MemberProfilePage() {
       <section>
         <div className="mb-3 flex items-center gap-2">
           <span className="text-lg">🔧</span>
-          <h3 className="text-lg font-semibold text-white">General Equipment</h3>
+          <h3 className="text-lg font-semibold text-hacman-text">General Equipment</h3>
         </div>
         {filteredNoInduction.length === 0 ? (
           <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-6 text-center">

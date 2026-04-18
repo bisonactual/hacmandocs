@@ -125,7 +125,7 @@ export default function ProposeRAEditPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Propose Edit — Risk Assessment</h1>
+          <h1 className="text-2xl font-bold text-hacman-text">Propose Edit — Risk Assessment</h1>
           {tool && <p className="mt-1 text-sm text-hacman-muted">{tool.name}</p>}
           <p className="mt-1 text-xs text-gray-500">Your proposed changes will be reviewed before going live.</p>
         </div>

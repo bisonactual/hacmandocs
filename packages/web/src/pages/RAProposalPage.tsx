@@ -214,7 +214,7 @@ export default function RAProposalPage() {
 
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">RA Proposal</h1>
+          <h1 className="text-2xl font-bold text-hacman-text">RA Proposal</h1>
           {tool && <p className="mt-1 text-sm text-hacman-muted">{tool.name} — Risk Assessment</p>}
           <div className="mt-2 flex items-center gap-3 text-sm text-hacman-muted">
             <span className={`rounded px-2 py-0.5 text-xs ${statusStyles[proposal.status] ?? ""}`}>{proposal.status}</span>
@@ -287,7 +287,7 @@ export default function RAProposalPage() {
       {/* Review panel */}
       {isPending && canReview && (
         <div className="rounded-xl border border-hacman-gray bg-hacman-dark p-4 space-y-3">
-          <h2 className="text-lg font-semibold text-white">Review</h2>
+          <h2 className="text-lg font-semibold text-hacman-text">Review</h2>
           <div>
             <label className="mb-1 block text-sm text-gray-400">Rejection reason (required to reject):</label>
             <textarea

@@ -77,7 +77,7 @@ export default function ProposeEditPage() {
         ← Back
       </button>
 
-      <h1 className="mb-1 text-2xl font-bold text-white">Propose Edit</h1>
+      <h1 className="mb-1 text-2xl font-bold text-hacman-text">Propose Edit</h1>
       <p className="mb-4 text-sm text-hacman-muted">Editing: {doc.title}</p>
 
       {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
