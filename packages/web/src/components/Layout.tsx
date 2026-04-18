@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useMobileDrawer } from "../hooks/useMobileDrawer";
 import NavigationSidebar from "./NavigationSidebar";
 import SearchBar from "./SearchBar";
+import ThemeToggle from "./ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import HacmanLogo from "./HacmanLogo";
 
@@ -63,6 +64,7 @@ export default function Layout() {
           </Link>
         </div>
         <div className="flex shrink-0 items-center gap-2 md:gap-3">
+          <ThemeToggle />
           <SearchBar />
           {token && <NotificationBell />}
           {user ? (
@@ -115,7 +117,7 @@ export default function Layout() {
           </>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-[#0f0f0f] p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto bg-hacman-deeper p-4 md:p-6">
           <Outlet />
         </main>
       </div>
