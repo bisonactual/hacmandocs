@@ -24,10 +24,21 @@
   --color-hacman-deeper: #eef0f2;
   --color-hacman-border: #9ca3af;
   --color-hacman-text: #111827;
+  --color-hacman-yellow: #b45309;
 
   --color-gray-200: #1f2937;
   --color-gray-300: #374151;
   --color-gray-400: #4b5563;
+
+  --color-amber-400: #b45309;
+  --color-yellow-400: #b45309;
+  --color-orange-400: #c2410c;
+}
+
+/* amber-300/200 on dark badge spans must stay light — only override on paragraph text */
+:root.light p.text-amber-300,
+:root.light p.text-amber-200 {
+  color: #92400e;
 }
 
 @keyframes slide-in-left {
