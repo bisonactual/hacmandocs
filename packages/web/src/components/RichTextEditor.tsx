@@ -538,6 +538,7 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     const editorRef = useRef<ReturnType<typeof useEditor>>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [previewHtml, setPreviewHtml] = useState("");
+    const [showPreview, setShowPreview] = useState(() => window.innerWidth >= 768);
 
     // Default extensions used when no custom set is provided
     const defaultExtensions: Extensions = [
@@ -660,11 +661,23 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
     if (!editor) return null;
 
     return (
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-4 md:flex-row">
         {/* Editor pane */}
-        <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark">
+        <div className={`rounded-lg border border-hacman-gray bg-hacman-dark ${showPreview ? "md:flex-1" : "flex-1"}`}>
           <Toolbar editor={editor} isUploading={isUploading} setIsUploading={setIsUploading} />
-          <div className="flex min-h-[300px] flex-col p-4 text-gray-200">
+          <div className="flex justify-end border-b border-hacman-gray/40 px-2 py-1">
+            <button
+              type="button"
+              onClick={() => setShowPreview((p) => !p)}
+              className={`rounded px-2 py-0.5 text-xs transition-colors ${showPreview ? "bg-hacman-yellow/20 text-hacman-yellow" : "text-gray-400 hover:bg-hacman-gray"}`}
+            >
+              {showPreview ? "Hide preview" : "Preview"}
+            </button>
+          </div>
+          <div
+            className={`flex flex-col p-4 text-gray-200 ${showPreview ? "min-h-[200px]" : "min-h-[300px]"}`}
+            onClick={() => editor.commands.focus("end")}
+          >
             {isUploading && (
               <div className="mb-2 flex items-center gap-2 rounded bg-hacman-gray/50 px-3 py-1.5 text-xs text-gray-400">
                 <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-gray-400 border-t-transparent" />
@@ -675,14 +688,16 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           </div>
         </div>
 
-        {/* Live preview pane */}
-        <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark p-4">
-          <h3 className="mb-2 text-sm font-semibold text-hacman-muted">Preview</h3>
-          <div
-            className="prose prose-invert max-w-none text-sm"
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-          />
-        </div>
+        {/* Preview pane — toggled on both mobile and desktop */}
+        {showPreview && (
+          <div className="flex-1 rounded-lg border border-hacman-gray bg-hacman-dark p-4">
+            <h3 className="mb-2 text-sm font-semibold text-hacman-muted">Preview</h3>
+            <div
+              className="prose prose-invert max-w-none text-sm"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          </div>
+        )}
       </div>
     );
   },

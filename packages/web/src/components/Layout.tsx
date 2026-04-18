@@ -55,7 +55,7 @@ export default function Layout() {
             </button>
           )}
           <Link to="/" className="flex min-w-0 items-center gap-3 text-hacman-text hover:text-hacman-yellow transition-colors">
-            <HacmanLogo className="h-8 shrink-0" />
+            <HacmanLogo className="h-6 shrink-0 md:h-8" />
             <div className="hidden md:block">
               <span className="text-[10px] uppercase tracking-widest text-hacman-muted leading-none block">
                 Documentation &amp; Training
@@ -80,9 +80,13 @@ export default function Layout() {
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-md border border-hacman-gray px-3 py-1.5 text-sm text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors"
+                className="rounded-md border border-hacman-gray px-2 py-1.5 text-sm text-gray-400 hover:border-hacman-yellow hover:text-hacman-yellow transition-colors"
+                aria-label="Logout"
               >
-                Logout
+                <span className="hidden md:inline">Logout</span>
+                <svg className="h-4 w-4 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
               </button>
             </div>
           ) : (
