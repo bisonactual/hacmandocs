@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
-import type { RiskAssessmentContent } from "@hacmandocs/shared";
 
 interface ProposalRow {
   id: string;

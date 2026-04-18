@@ -3,7 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import type { Env } from "../index";
 import { requireRole } from "../middleware/rbac";
-import { raProposals, riskAssessments, toolRecords, toolTrainers } from "../db/schema";
+import { raProposals, riskAssessments } from "../db/schema";
 import type { RiskAssessmentContent } from "@hacmandocs/shared";
 
 const raProposalsApp = new Hono<Env>();
@@ -25,19 +25,6 @@ function canReview(permissionLevel: string, groupLevel: string): boolean {
     groupLevel === "Manager" ||
     isTeamLeaderPlus(groupLevel)
   );
-}
-
-async function isTrainerForTool(
-  db: ReturnType<typeof drizzle>,
-  userId: string,
-  toolRecordId: string,
-): Promise<boolean> {
-  const rows = await db
-    .select()
-    .from(toolTrainers)
-    .where(and(eq(toolTrainers.userId, userId), eq(toolTrainers.toolRecordId, toolRecordId)))
-    .limit(1);
-  return rows.length > 0;
 }
 
 // ── GET / — List RA proposals (Viewer+) ──────────────────────────────
