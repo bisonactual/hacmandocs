@@ -293,3 +293,18 @@ export interface RiskAssessment {
   createdAt: number;
   updatedAt: number;
 }
+
+export type RAProposalStatus = 'pending' | 'approved' | 'rejected';
+
+export interface RAProposal {
+  id: string;
+  toolRecordId: string;
+  raId: string;
+  proposedContent: RiskAssessmentContent;
+  authorId: string;
+  reviewerId: string | null;
+  status: RAProposalStatus;
+  rejectionReason: string | null;
+  createdAt: number;
+  updatedAt: number;
+}

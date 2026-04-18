@@ -6,7 +6,6 @@ import { requireRole } from "../middleware/rbac";
 import { checkDocumentVisibility, checkCategoryVisibility } from "../middleware/visibility";
 import { documents, documentVersions, documentVisibility, categoryVisibility, visibilityGroups, visibilityGroupMembers, toolRecords, editProposals, deleteProposals, notifications } from "../db/schema";
 import type { DocumentNode } from "@hacmandocs/shared";
-import { validateLockedEdit } from "../services/tool-docs";
 
 /**
  * Extract plain text from a ProseMirror/TipTap JSON document node.
@@ -331,13 +330,6 @@ documentsApp.put("/:id", requireRole("Editor"), async (c) => {
     }
     if (body.categoryId !== undefined && body.categoryId !== existing.categoryId) {
       return c.json({ error: "This page's category is managed by the linked tool record and cannot be changed manually." }, 400);
-    }
-    if (body.contentJson !== undefined) {
-      const existingContent = JSON.parse(existing.contentJson) as DocumentNode;
-      const lockError = validateLockedEdit(existingContent, body.contentJson);
-      if (lockError) {
-        return c.json({ error: lockError }, 400);
-      }
     }
   }
 

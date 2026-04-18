@@ -23,6 +23,8 @@ import SignoffFormPage from "./pages/inductions/SignoffFormPage";
 import ChecklistPage from "./pages/inductions/ChecklistPage";
 import RiskAssessmentPage from "./pages/inductions/RiskAssessmentPage";
 import EditRiskAssessmentPage from "./pages/inductions/EditRiskAssessmentPage";
+import ProposeRAEditPage from "./pages/inductions/ProposeRAEditPage";
+import RAProposalPage from "./pages/RAProposalPage";
 import ToolsPage from "./pages/admin/ToolsPage";
 import QuizzesPage from "./pages/admin/QuizzesPage";
 import EditQuizDescriptionPage from "./pages/admin/EditQuizDescriptionPage";
@@ -234,6 +236,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <EditRiskAssessmentPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inductions/risk-assessment/:toolId/propose"
+          element={
+            <ProtectedRoute>
+              <ProposeRAEditPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ra-proposals/:id"
+          element={
+            <ProtectedRoute>
+              <RAProposalPage />
             </ProtectedRoute>
           }
         />

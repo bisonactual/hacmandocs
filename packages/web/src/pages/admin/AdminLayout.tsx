@@ -39,8 +39,9 @@ export default function AdminLayout() {
     Promise.all([
       apiFetch<{ status: string }[]>("/api/proposals?status=pending").catch(() => []),
       apiFetch<{ status: string }[]>("/api/delete-proposals?status=pending").catch(() => []),
-    ]).then(([editProps, deleteProps]) => {
-      setPendingCount(editProps.length + deleteProps.length);
+      apiFetch<{ status: string }[]>("/api/ra-proposals?status=pending").catch(() => []),
+    ]).then(([editProps, deleteProps, raProps]) => {
+      setPendingCount(editProps.length + deleteProps.length + raProps.length);
     });
   }, [hasAccess]);
 

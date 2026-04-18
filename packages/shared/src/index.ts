@@ -45,6 +45,8 @@ export type {
   RiskAssessmentRow,
   RiskAssessmentContent,
   RiskAssessment,
+  RAProposalStatus,
+  RAProposal,
 } from './types.js';
 
 export { parseMarkdown, parseMarkdownWithWarnings, toMarkdown, markdownConverter } from './markdown.js';

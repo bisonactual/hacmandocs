@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../hooks/useAuth";
-import type { RiskAssessment, RiskAssessmentRow } from "@hacmandocs/shared";
+import type { RiskAssessment, RiskAssessmentRow, RAProposal } from "@hacmandocs/shared";
 
 // ── Risk score helpers ────────────────────────────────────────────────
 
@@ -60,6 +60,7 @@ export default function RiskAssessmentPage() {
   const [error, setError] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pendingProposals, setPendingProposals] = useState<RAProposal[]>([]);
 
   const load = () => {
     if (!toolId) return;
@@ -69,9 +70,19 @@ export default function RiskAssessmentPage() {
         if (e.message.includes("404") || e.message.toLowerCase().includes("not found")) { setNotFound(true); return null; }
         throw e;
       }),
-      apiFetch<ToolInfo[]>("/api/inductions/tools").then((tools) => tools.find((t) => t.id === toolId) ?? null),
+      apiFetch<ToolInfo[]>("/api/inductions/tools")
+        .then((tools) => tools.find((t) => t.id === toolId) ?? null)
+        .catch(() => null),
     ])
-      .then(([raData, toolData]) => { setRa(raData); setTool(toolData ?? null); })
+      .then(([raData, toolData]) => {
+        setRa(raData);
+        setTool(toolData ?? null);
+        if (raData && user) {
+          apiFetch<RAProposal[]>(`/api/ra-proposals?toolRecordId=${toolId}&status=pending`)
+            .then(setPendingProposals)
+            .catch(() => {});
+        }
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   };
@@ -81,10 +92,11 @@ export default function RiskAssessmentPage() {
   const isAdmin = user?.permissionLevel === "Admin";
   const isManager = user?.groupLevel === "Manager";
   const isPrivileged = isAdmin || isManager || isTeamLeaderPlus(user?.groupLevel ?? "");
-  const canEdit = isPrivileged || false;
+  const canEdit = isPrivileged;
   const canCreate = !!user;
   const canPublish = isPrivileged;
   const canDelete = isPrivileged;
+  const canPropose = !!user && !canEdit;
 
   const handlePublish = async () => {
     if (!toolId || !confirm("Publish this risk assessment? It will be visible to all members.")) return;
@@ -104,6 +116,10 @@ export default function RiskAssessmentPage() {
       load();
     } catch (e: unknown) { setError(e instanceof Error ? e.message : "Failed"); }
     finally { setPublishing(false); }
+  };
+
+  const handleProposeEdit = () => {
+    navigate(`/inductions/risk-assessment/${toolId}/propose`);
   };
 
   const handleDelete = async () => {
@@ -185,6 +201,16 @@ export default function RiskAssessmentPage() {
                 className="rounded-lg border border-hacman-yellow/40 px-4 py-1.5 text-sm text-hacman-yellow hover:bg-hacman-yellow/10 transition-colors"
               >
                 Edit
+              </button>
+            )}
+            {canPropose && ra?.status === "published" && (
+              <button
+                onClick={handleProposeEdit}
+                disabled={pendingProposals.some((p) => p.authorId === user?.id)}
+                className="rounded-lg border border-blue-500/40 px-4 py-1.5 text-sm text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                title={pendingProposals.some((p) => p.authorId === user?.id) ? "You already have a pending proposal" : undefined}
+              >
+                Propose Edit
               </button>
             )}
             {canPublish && isDraft && (

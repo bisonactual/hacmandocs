@@ -19,6 +19,7 @@ import {
   areaLeaders,
   documents,
   categories,
+  riskAssessments,
 } from "../db/schema";
 import { validateToolRecord, validateQuestion, partitionMemberTools } from "../services/induction-validators";
 import { recalculateExpiry, createCertification, getCertificationStatus } from "../services/certification";
@@ -326,6 +327,9 @@ inductionsApp.delete("/tools/:id", requireAdminOrManager(), async (c) => {
     console.error("[tool-docs] Failed to release docs page during tool deletion:", err);
   }
 
+  // Delete risk assessments linked to this tool
+  await db.delete(riskAssessments).where(eq(riskAssessments.toolRecordId, id));
+
   // Delete related records that have FK references to this tool
   await db.delete(toolTrainers).where(eq(toolTrainers.toolRecordId, id));
   await db.delete(certifications).where(eq(certifications.toolRecordId, id));
@@ -403,6 +407,66 @@ inductionsApp.post("/tools/:id/repair-link", requireAdminOrManager(), async (c) 
   } catch (err) {
     console.error("[tool-docs] repair-link failed:", err);
     return c.json({ error: "Failed to repair docs link." }, 500);
+  }
+});
+
+/**
+ * POST /tools/:id/resync-intro — Re-push quiz description to the linked docs page (Admin/Manager only).
+ */
+inductionsApp.post("/tools/:id/resync-intro", requireAdminOrManager(), async (c) => {
+  const id = c.req.param("id");
+  const db = drizzle(c.env.DB);
+
+  const [tool] = await db
+    .select()
+    .from(toolRecords)
+    .where(eq(toolRecords.id, id))
+    .limit(1);
+
+  if (!tool) return c.json({ error: "Tool record not found." }, 404);
+  if (!tool.docPageId) return c.json({ error: "No linked docs page for this tool." }, 400);
+
+  let quizDescription: string | null = null;
+  if (tool.quizId) {
+    const [quiz] = await db
+      .select({ description: quizzes.description })
+      .from(quizzes)
+      .where(eq(quizzes.id, tool.quizId))
+      .limit(1);
+    quizDescription = quiz?.description ?? null;
+  }
+
+  try {
+    await syncDescription({ db: c.env.DB, docPageId: tool.docPageId, quizDescription });
+    return c.json({ success: true });
+  } catch (err) {
+    console.error("[tool-docs] resync-intro failed:", err);
+    return c.json({ error: "Failed to resync intro content." }, 500);
+  }
+});
+
+/**
+ * POST /tools/:id/remove-intro — Strip system intro nodes from the linked docs page and unlink it (Admin/Manager only).
+ */
+inductionsApp.post("/tools/:id/remove-intro", requireAdminOrManager(), async (c) => {
+  const id = c.req.param("id");
+  const db = drizzle(c.env.DB);
+
+  const [tool] = await db
+    .select()
+    .from(toolRecords)
+    .where(eq(toolRecords.id, id))
+    .limit(1);
+
+  if (!tool) return c.json({ error: "Tool record not found." }, 404);
+  if (!tool.docPageId) return c.json({ error: "No linked docs page for this tool." }, 400);
+
+  try {
+    await releaseDocsPage({ db: c.env.DB, toolId: id, docPageId: tool.docPageId });
+    return c.json({ success: true });
+  } catch (err) {
+    console.error("[tool-docs] remove-intro failed:", err);
+    return c.json({ error: "Failed to remove intro content." }, 500);
   }
 });
 

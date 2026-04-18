@@ -462,3 +462,33 @@ export const riskAssessments = sqliteTable(
     check("ra_status_check", sql`${table.status} IN ('draft', 'published')`),
   ]
 );
+
+// ── RA Proposals ──────────────────────────────────────────────────────
+
+export const raProposals = sqliteTable(
+  "ra_proposals",
+  {
+    id: text("id").primaryKey(),
+    toolRecordId: text("tool_record_id")
+      .notNull()
+      .references(() => toolRecords.id),
+    raId: text("ra_id")
+      .notNull()
+      .references(() => riskAssessments.id),
+    proposedContentJson: text("proposed_content_json").notNull(),
+    authorId: text("author_id")
+      .notNull()
+      .references(() => users.id),
+    reviewerId: text("reviewer_id").references(() => users.id),
+    status: text("status").notNull().default("pending"),
+    rejectionReason: text("rejection_reason"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [
+    check(
+      "ra_proposal_status_check",
+      sql`${table.status} IN ('pending', 'approved', 'rejected')`,
+    ),
+  ],
+);

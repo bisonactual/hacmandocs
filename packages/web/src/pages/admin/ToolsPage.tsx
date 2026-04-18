@@ -38,6 +38,7 @@ export default function ToolsPage() {
   const [allUsers, setAllUsers] = useState<UserRow[]>([]);
   const [selectedTrainers, setSelectedTrainers] = useState<string[]>([]);
   const [repairStatus, setRepairStatus] = useState<Record<string, string>>({});
+  const [introStatus, setIntroStatus] = useState<Record<string, string>>({});
   const [raStatuses, setRaStatuses] = useState<Record<string, "draft" | "published">>({});
 
   const load = () => {
@@ -103,12 +104,44 @@ export default function ToolsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete this tool record?")) return;
+    const toolName = tools.find((t) => t.id === id)?.name ?? "this tool";
+    const hasRa = !!raStatuses[id];
+    const msg = hasRa
+      ? `Delete "${toolName}" and its Risk Assessment? This cannot be undone.`
+      : `Delete "${toolName}"? This cannot be undone.`;
+    if (!confirm(msg)) return;
     try {
       await apiFetch(`/api/inductions/tools/${id}`, { method: "DELETE" });
       load();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Delete failed");
+    }
+  };
+
+  const handleResyncIntro = async (toolId: string) => {
+    setIntroStatus((prev) => ({ ...prev, [toolId]: "syncing" }));
+    try {
+      await apiFetch(`/api/inductions/tools/${toolId}/resync-intro`, { method: "POST" });
+      setIntroStatus((prev) => ({ ...prev, [toolId]: "synced" }));
+      setTimeout(() => setIntroStatus((prev) => { const next = { ...prev }; delete next[toolId]; return next; }), 2000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Resync failed";
+      setIntroStatus((prev) => ({ ...prev, [toolId]: `error: ${msg}` }));
+      setTimeout(() => setIntroStatus((prev) => { const next = { ...prev }; delete next[toolId]; return next; }), 3000);
+    }
+  };
+
+  const handleRemoveIntro = async (toolId: string) => {
+    if (!confirm("Remove the system-managed intro content from the docs page and unlink it? This cannot be undone.")) return;
+    setIntroStatus((prev) => ({ ...prev, [toolId]: "removing" }));
+    try {
+      await apiFetch(`/api/inductions/tools/${toolId}/remove-intro`, { method: "POST" });
+      setIntroStatus((prev) => ({ ...prev, [toolId]: "removed" }));
+      setTimeout(() => setIntroStatus((prev) => { const next = { ...prev }; delete next[toolId]; return next; }), 2000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Remove failed";
+      setIntroStatus((prev) => ({ ...prev, [toolId]: `error: ${msg}` }));
+      setTimeout(() => setIntroStatus((prev) => { const next = { ...prev }; delete next[toolId]; return next; }), 3000);
     }
   };
 
@@ -239,6 +272,12 @@ export default function ToolsPage() {
                   <button onClick={() => openTrainers(t.id)} className="text-green-400 hover:underline text-xs">Trainers</button>
                   <button onClick={() => handleRepairLink(t.id)} disabled={repairStatus[t.id] === "repairing"} className="text-blue-400 hover:underline text-xs disabled:opacity-50">
                     {repairStatus[t.id] === "repairing" ? "Repairing…" : repairStatus[t.id] === "linked" ? "Linked!" : repairStatus[t.id]?.startsWith("error:") ? repairStatus[t.id].slice(7) : "Repair Link"}
+                  </button>
+                  <button onClick={() => handleResyncIntro(t.id)} disabled={introStatus[t.id] === "syncing"} className="text-purple-400 hover:underline text-xs disabled:opacity-50">
+                    {introStatus[t.id] === "syncing" ? "Syncing…" : introStatus[t.id] === "synced" ? "Synced!" : introStatus[t.id] === "removing" ? "Removing…" : introStatus[t.id] === "removed" ? "Removed!" : introStatus[t.id]?.startsWith("error:") ? introStatus[t.id].slice(7) : "Resend Intro"}
+                  </button>
+                  <button onClick={() => handleRemoveIntro(t.id)} disabled={introStatus[t.id] === "removing"} className="text-orange-400 hover:underline text-xs disabled:opacity-50">
+                    Remove Intro
                   </button>
                   <button onClick={() => handleDelete(t.id)} className="text-red-400 hover:underline text-xs">Delete</button>
                   {raStatuses[t.id] === "published"

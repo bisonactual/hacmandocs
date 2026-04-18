@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
+import type { RiskAssessmentContent } from "@hacmandocs/shared";
 
 interface ProposalRow {
   id: string;
@@ -34,6 +35,23 @@ interface DocumentRow {
   title: string;
 }
 
+interface RAProposalRow {
+  id: string;
+  toolRecordId: string;
+  raId: string;
+  proposedContentJson: string;
+  authorId: string;
+  status: string;
+  rejectionReason: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface ToolRow {
+  id: string;
+  name: string;
+}
+
 const statusStyles: Record<string, string> = {
   pending: "bg-hacman-yellow/20 text-hacman-yellow border border-hacman-yellow/30",
   approved: "bg-green-500/20 text-green-400 border border-green-500/30",
@@ -43,36 +61,41 @@ const statusStyles: Record<string, string> = {
 export default function ProposalsPage() {
   const [proposals, setProposals] = useState<ProposalRow[]>([]);
   const [deleteProps, setDeleteProps] = useState<DeleteProposalRow[]>([]);
+  const [raProps, setRaProps] = useState<RAProposalRow[]>([]);
   const [users, setUsers] = useState<Map<string, UserRow>>(new Map());
   const [docs, setDocs] = useState<Map<string, DocumentRow>>(new Map());
+  const [tools, setTools] = useState<Map<string, ToolRow>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("pending");
-  const [tab, setTab] = useState<"edit" | "delete">("edit");
+  const [tab, setTab] = useState<"edit" | "delete" | "ra">("edit");
 
   const load = async () => {
     setLoading(true);
     try {
       const editUrl = filter ? `/api/proposals?status=${filter}` : "/api/proposals";
       const deleteUrl = filter ? `/api/delete-proposals?status=${filter}` : "/api/delete-proposals";
-      const [editRows, deleteRows] = await Promise.all([
+      const raUrl = filter ? `/api/ra-proposals?status=${filter}` : "/api/ra-proposals";
+      const [editRows, deleteRows, raRows] = await Promise.all([
         apiFetch<ProposalRow[]>(editUrl),
         apiFetch<DeleteProposalRow[]>(deleteUrl),
+        apiFetch<RAProposalRow[]>(raUrl),
       ]);
       setProposals(editRows.sort((a, b) => b.createdAt - a.createdAt));
       setDeleteProps(deleteRows.sort((a, b) => b.createdAt - a.createdAt));
+      setRaProps(raRows.sort((a, b) => b.createdAt - a.createdAt));
 
-      // Fetch user names and doc titles for display
       const allDocIds = [
         ...new Set([...editRows.map((p) => p.documentId), ...deleteRows.map((p) => p.documentId)]),
       ];
 
-      const [userList, docList] = await Promise.all([
+      const [userList, docList, toolList] = await Promise.all([
         apiFetch<UserRow[]>("/api/users"),
         Promise.all(
           allDocIds.map((id) =>
             apiFetch<DocumentRow>(`/api/documents/${id}`).catch(() => ({ id, title: "(deleted)" }))
           )
         ),
+        apiFetch<ToolRow[]>("/api/inductions/tools").catch(() => []),
       ]);
 
       const userMap = new Map<string, UserRow>();
@@ -82,6 +105,10 @@ export default function ProposalsPage() {
       const docMap = new Map<string, DocumentRow>();
       for (const d of docList) docMap.set(d.id, d);
       setDocs(docMap);
+
+      const toolMap = new Map<string, ToolRow>();
+      for (const t of toolList) toolMap.set(t.id, t);
+      setTools(toolMap);
     } catch {
       // ignore
     } finally {
@@ -130,6 +157,21 @@ export default function ProposalsPage() {
           {deleteProps.filter((d) => d.status === "pending").length > 0 && tab !== "delete" && (
             <span className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
               {deleteProps.filter((d) => d.status === "pending").length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setTab("ra")}
+          className={`rounded-t-lg px-4 py-1.5 text-sm transition-colors ${
+            tab === "ra"
+              ? "bg-blue-600 text-white font-semibold"
+              : "text-gray-400 hover:text-gray-200"
+          }`}
+        >
+          RA Proposals
+          {raProps.filter((r) => r.status === "pending").length > 0 && tab !== "ra" && (
+            <span className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">
+              {raProps.filter((r) => r.status === "pending").length}
             </span>
           )}
         </button>
@@ -193,6 +235,40 @@ export default function ProposalsPage() {
           formatDate={formatDate}
           onRefresh={load}
         />
+      )}
+
+      {tab === "ra" && (
+        <>
+          {raProps.length === 0 ? (
+            <p className="text-sm text-hacman-muted">No {filter || ""} RA proposals found.</p>
+          ) : (
+            <div className="space-y-2">
+              {raProps.map((p) => {
+                const author = users.get(p.authorId);
+                const tool = tools.get(p.toolRecordId);
+                return (
+                  <Link
+                    key={p.id}
+                    to={`/ra-proposals/${p.id}`}
+                    className="flex items-center justify-between rounded-lg border border-hacman-gray p-3 hover:border-blue-500/50 transition-colors"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-200 truncate">
+                        {tool?.name ?? p.toolRecordId} — Risk Assessment
+                      </p>
+                      <p className="text-xs text-hacman-muted">
+                        by {author?.name ?? author?.email ?? p.authorId} · {formatDate(p.createdAt)}
+                      </p>
+                    </div>
+                    <span className={`ml-3 shrink-0 rounded px-2 py-0.5 text-xs ${statusStyles[p.status] ?? ""}`}>
+                      {p.status}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
