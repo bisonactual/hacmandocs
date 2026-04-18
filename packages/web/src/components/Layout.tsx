@@ -55,7 +55,7 @@ export default function Layout() {
             </button>
           )}
           <Link to="/" className="flex min-w-0 items-center gap-3 text-hacman-text hover:text-hacman-yellow transition-colors">
-            <HacmanLogo className="h-6 shrink-0 md:h-8" />
+            <HacmanLogo className="hidden h-8 shrink-0 md:block" />
             <div className="hidden md:block">
               <span className="text-[10px] uppercase tracking-widest text-hacman-muted leading-none block">
                 Documentation &amp; Training
