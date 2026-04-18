@@ -21,6 +21,8 @@ Thumbs.db
 
 # IDE
 .idea/
+.claude/
+.kiro/
 *.swp
 *.swo
 
